@@ -110,12 +110,12 @@ void help() {
 	printf("\t%d (%s) - lowercase characters\n", MODE_LOW, var_name(MODE_LOW));
 	printf("\tanything else defaults to %s\n", var_name(MODE_SYM));
 	printf("\nAUTHOR\n");
-	printf("\tMeelis Utt\n");
+	printf("\tMeelis Utt (meelis.utt@gmail.com)\n");
 }
 
 int main(int argc, char **argv) {
 	char *seed = calloc(SEED_SIZE, sizeof(char));
-	char *domain;
+	char *domain = "";
 	int free_seed = 0;
 	size_t size = SIZE;
 	for (int i=1; i<argc; ++i) {
@@ -160,6 +160,8 @@ int main(int argc, char **argv) {
 	}
 	if (eq("", domain)) {
 		fprintf(stderr, "[ERROR]: no domain provided\n");
+		help();
+		return EINVAL;
 	}
 	unsigned long long rs = calc_rand_seed(seed);
 	free(seed);
