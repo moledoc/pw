@@ -69,11 +69,19 @@ int fit_mode(char c) {
 	}
 }
 
+unsigned long long a = 127;
+unsigned long long c = 5700;
+unsigned long long m = 58595;
+unsigned long long lng(unsigned long long seed) {
+	return (a*seed+c)%m;
+}
+
 void calc_pw(unsigned long long seed, char *pw, size_t size) {
-	srand(seed);
 	int i=0;
 	for (;i<size;) {
-		char c = rand()%MOD+OFFSET;
+		printf("seed: %d\n", seed);
+		seed = lng(seed);
+		char c = seed%MOD+OFFSET;
 		if (!fit_mode(c)) {
 			continue;
 		}
