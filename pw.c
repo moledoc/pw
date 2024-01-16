@@ -127,7 +127,8 @@ int gen_seedling(char *arr, size_t size) {
 
 void calc_pw(char *seed, char *domain, char *pw, size_t pw_size) {
 	size_t seed_len = slen(seed);
-	int nseed = gen_seedling(seed, seed_len);
+	size_t domain_len = slen(domain);
+	int nseed = gen_seedling(seed, seed_len)+gen_seedling(domain, domain_len);
 
 	int failsafe = 0;
 	size_t i = 0;
