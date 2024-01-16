@@ -229,7 +229,7 @@ int main(int argc, char **argv) {
 		} else if (eq("-l", flag) && i+1 < argc) {
 			pw_size = (size_t)a_i(argv[i+1]);
 			if (!(PW_SIZE_MIN <= pw_size && pw_size <= PW_SIZE_MAX)) {
-				snprintf(hint, 128, ", invalid length(%d)", pw_size);
+				snprintf(hint, 128, ", invalid length(%zu)", pw_size);
 				errno = EINVAL;
 			}
 		} else if (eq("-m", flag) && i+1 < argc) {
@@ -238,7 +238,7 @@ int main(int argc, char **argv) {
 			LCG_A = a_i(argv[i+1]);
 			LCG_B = a_i(argv[i+2]);
 			LCG_M = a_i(argv[i+3]);
-			snprintf(hint, 128, validate_lcg(LCG_A, LCG_B, LCG_M));
+			snprintf(hint, 128, "%s", validate_lcg(LCG_A, LCG_B, LCG_M));
 			i+=2;
 		} else if (i == argc - 1) {
 			domain = flag;
