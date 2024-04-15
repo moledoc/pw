@@ -5,7 +5,7 @@
 ## Synopsis
 
 ```text
-pw [-h] [-l LENGTH] [-m MODE] -lcg A B M -s SEED DOMAIN
+pw [-h] [-s SALT] [-p PEPPER] -k KEY DOMAIN
 ```
 
 ## Options
@@ -13,38 +13,35 @@ pw [-h] [-l LENGTH] [-m MODE] -lcg A B M -s SEED DOMAIN
 ```text
 -h, -help, --help, help
 	print help
+-k KEY, --key KEY
+	key file or literal (required)
+-s SALT, --salt SALT
+	salt the password - add something-somethig to the digestable message
+-p PEPPER, --pepper PEPPER
+	pepper the password - add something-something to the digested message
+-l LENGTH, --length LENGTH
+	how many digest elements are printed (default: 16, allowed: 1-16);
+	NOTE: each digest element is 2 characters long
 DOMAIN
-	password domain, i.e. for what; eg 'github.com/moledoc'
--s SEED
-	password seed
-	 - if points to file, seed is file content
-	 - else is seed
-	max length of seed is SEED_SIZE_MAX(4096)
--lcg A B M
-	LCG modifiers
-	 - M (modulo), 0 < M <= LCG_M_MAX(50000)
-	 - A (multiplier), 0 < A < M
-	 - B (constant), 0 <= B < M
-	all modifiers are equal, some are just more equal
--l LENGTH
-	length of password; PW_SIZE_MIN(12) <= LENGTH <= PW_SIZE_MAX(128) (default=32)
--m MODE
-	password mode (default=0)
-	 0 (MODE_SYM) - alphanumeric characters and symbols
-	 1 (MODE_NUM) - alphanumeric characters
-	 2 (MODE_UPP) - alphabet characters
-	 3 (MODE_LOW) - lowercase characters
-	anything else defaults to MODE_SYM
+	password domain (required)
 ```
+
+## Description
+
+`pw` is vaultless password manager as it doesn't store any password - it will calculate the password based on provided input.
+Password is constructed in the following way: `md5(domain+key+salt)+pepper`, where `+` denotes string concatenation.
 
 ## Examples
 
 ```sh
-./pw -s test -lcg 65 678 12345 example@example.com/exampleuser
-./pw -s ./README.md -lcg 122 12 300 example@example.com/exampleuser
-./pw -m 1 -s seed -lcg 12 0 345 example@example.com/exampleuser
-./pw -l 16 -m 2 -s test-test -lcg 99 86 100 example@example.com/exampleuser # not good modifiers with this seed, non-terminating loop detected
-./pw -l 24 -s test-test-test -lcg 255 1000 25000 example@example.com/exampleuser
+* pw -h
+* pw help
+* pw -k test example@example.com/exampleuser
+* pw -k ./README.md example@example.com/exampleuser
+* pw -k test -s test_test example@example.com/exampleuser
+* pw -k test -p TEST_TEST example@example.com/exampleuser
+* pw -k test -s test_test -p TEST_TEST example@example.com/exampleuser
+* pw -k ./README.md -s test_test -p TEST_TEST example@example.com/exampleuser
 ```
 
 ## Author
