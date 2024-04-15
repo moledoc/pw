@@ -10,11 +10,11 @@ void help() {
 	printf("\nSYNOPSIS\n\tpw [-h] [-s SALT] [-p PEPPER] -k KEY DOMAIN\n");
 	printf("\nOPTIONS\n");
 	printf("\t%s\n\t\tprint help\n", "-h, -help, --help, help");
-	printf("\t%s\n\t\tkey file or literal\n", "-k KEY, --key KEY");
+	printf("\t%s\n\t\tkey file or literal (required)\n", "-k KEY, --key KEY");
 	printf("\t%s\n\t\tsalt the password\n", "-s SALT, --salt SALT");
 	printf("\t%s\n\t\tpepper the password\n", "-p PEPPER, --pepper PEPPER");
 	printf("\t%s\n\t\tlength of the digest printed; allowed 1-16 (default: 16) \n", "-l LENGTH, --length LENGTH");
-	printf("\t%s\n\t\tpassword domain, i.e. for what; eg 'github.com/moledoc'\n", "DOMAIN");
+	printf("\t%s\n\t\tpassword domain (required); eg 'github.com/moledoc'\n", "DOMAIN");
 	printf("\nEXAMPLES\n");
 	printf("\tTODO:\n");
 	printf("\nAUTHOR\n");
@@ -22,8 +22,8 @@ void help() {
 }
 
 int main(int argc, char **argv) {
-	char *domain;
-	char *key = malloc(0);
+	char *domain = 0;
+	char *key = 0;
 	char *salt = 0;
 	char *pepper = 0;
 	size_t length = 16;
@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
 		if (strcmp("-h", flag)==0|| strcmp("help", flag)==0 || strcmp("-help", flag)==0 || strcmp("--help", flag)==0) {
 			help();
 			return 0;
-		} else if ((strcmp("-k", flag)==0 || strcmp("--k", flag)==0) && i+1 < argc) {
+		} else if ((strcmp("-k", flag)==0 || strcmp("--key", flag)==0) && i+1 < argc) {
 			FILE *fptr = fopen(argv[i+1], "r");
 			if (fptr) {
 				fseek(fptr, 0, SEEK_END);
@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
 				fread(key, sizeof(char), sf_size, fptr);
 				fclose(fptr);
 			} else {
-				key = realloc(key, strlen(argv[i+1])*sizeof(char));
+				key = malloc(strlen(argv[i+1])*sizeof(char));
 				strncpy(key, argv[i+1], strlen(argv[i+1]));
 			}
 		} else if ((strcmp("-s", flag)==0 || strcmp("--salt", flag)==0) && i+1 < argc) {
@@ -56,8 +56,13 @@ int main(int argc, char **argv) {
 			domain = flag;
 		}
 	}
-	if (!domain || !key) {
-		fprintf(stderr, "missing at least 1 required argument\n");
+	if (!key) {
+		fprintf(stderr, "missing required argument 'KEY'\n");
+		return 1;
+	}
+	if (!domain) {
+		fprintf(stderr, "missing required argument 'DOMAIN'\n");
+		free(key);
 		return 1;
 	}
 	if (!salt) {
