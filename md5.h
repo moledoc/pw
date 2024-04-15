@@ -119,7 +119,7 @@ void md5(char *m, unsigned char digest[16]) {
 
 	unsigned char message_len_bits[8];
 	md5_memset(message_len_bits, 0, 8);
-	MD5_WORD bits[2] = { (message_len << 3) & 0x0ffffffff, ((message_len << 3) >> 32) & 0x0ffffffff};
+	MD5_WORD bits[2] = { (message_len << 3) & 0x0ffffffff, ((message_len << 3) >> 31) & 0x0ffffffff}; // REVIEWME: should second part be '>> 32' or '>> 31'?
 	md5_encode(message_len_bits, bits, 2);
 
 	size_t message_pp_len = message_len+padding_len+8;
