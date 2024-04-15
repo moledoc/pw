@@ -6,7 +6,7 @@
 #ifndef MD5_H_
 #define MD5_H_
 void md5(char *message, unsigned char digest[16]);
-void md5_print(unsigned char digest[16]);
+void md5_print(unsigned char digest[16], size_t len);
 #endif // MD5_H_
 
 #ifdef MD5_IMPLEMENTATION
@@ -106,8 +106,8 @@ MD5_WORD round_4(MD5_WORD a, MD5_WORD b, MD5_WORD c, MD5_WORD d, MD5_WORD x_k, i
 	return b + md5_rot_left(a + md5_i(b, c, d) + x_k + t_i, s);	
 }
 
-void md5_print(unsigned char digest[16]) {
-	for (int i=0; i<16; ++i) {
+void md5_print(unsigned char digest[16], size_t len) {
+	for (int i=0; i<len; ++i) {
 		printf("%02x", digest[i]);
 	}
 }
