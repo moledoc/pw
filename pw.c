@@ -7,11 +7,12 @@
 
 void help() {
 	printf("NAME\n\tpw - vaultless password manager\n");
-	printf("\nSYNOPSIS\n\tpw [-h] [-s SALT] -k KEY DOMAIN\n");
+	printf("\nSYNOPSIS\n\tpw [-h] [-s SALT] [-p PEPPER] -k KEY DOMAIN\n");
 	printf("\nOPTIONS\n");
 	printf("\t%s\n\t\tprint help\n", "-h, -help, --help, help");
 	printf("\t%s\n\t\tkey file or literal\n", "-k KEY, --key KEY");
 	printf("\t%s\n\t\tsalt the password\n", "-s SALT, --salt SALT");
+	printf("\t%s\n\t\tpepper the password\n", "-p PEPPER, --pepper PEPPER");
 	printf("\t%s\n\t\tpassword domain, i.e. for what; eg 'github.com/moledoc'\n", "DOMAIN");
 	printf("\nEXAMPLES\n");
 	printf("\tTODO:\n");
@@ -23,6 +24,7 @@ int main(int argc, char **argv) {
 	char *domain;
 	char *key = malloc(0);
 	char *salt = 0;
+	char *pepper = 0;
 
 	for (int i=1; i<argc; ++i) {
 		char *flag = argv[i];
@@ -44,6 +46,8 @@ int main(int argc, char **argv) {
 			}
 		} else if ((strcmp("-s", flag)==0 || strcmp("--salt", flag)==0) && i+1 < argc) {
 			salt = argv[i+1];
+		} else if ((strcmp("-p", flag)==0 || strcmp("--pepper", flag)==0) && i+1 < argc) {
+			pepper = argv[i+1];
 		} else if (i == argc - 1) {
 			domain = flag;
 		}
@@ -55,6 +59,9 @@ int main(int argc, char **argv) {
 	if (!salt) {
 		salt = "";
 	}
+	if (!pepper) {
+		pepper = "";
+	}
 
 	size_t message_len = strlen(domain)+strlen(key)+strlen(salt);
 	char message[message_len];
@@ -63,6 +70,7 @@ int main(int argc, char **argv) {
 	unsigned char digest[16];
 	md5(message, digest);
 	md5_print(digest);
-
+	printf("%s", pepper);
+	putchar('\n');
 	free(key);
 }

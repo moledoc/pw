@@ -110,7 +110,6 @@ void md5_print(unsigned char digest[16]) {
 	for (int i=0; i<16; ++i) {
 		printf("%02x", digest[i]);
 	}
-	putchar('\n');
 }
 
 void md5(char *m, unsigned char digest[16]) {
