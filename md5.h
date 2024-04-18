@@ -5,6 +5,7 @@
 
 #ifndef MD5_H_
 #define MD5_H_
+#include <stddef.h>
 void md5(char *message, unsigned char digest[16]);
 void md5_print(unsigned char digest[16], size_t len);
 #endif // MD5_H_

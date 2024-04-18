@@ -16,7 +16,7 @@ pw [-h] [-s SALT] [-p PEPPER] -k KEY DOMAIN
 -k KEY, --key KEY
 	key file or literal (required)
 -s SALT, --salt SALT
-	salt the password - add something-somethig to the digestable message
+	salt the password - add something-something to the digestable message
 -p PEPPER, --pepper PEPPER
 	pepper the password - add something-something to the digested message
 -l LENGTH, --length LENGTH

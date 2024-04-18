@@ -11,7 +11,7 @@ void help() {
 	printf("\nOPTIONS\n");
 	printf("\t%s\n\t\tprint help\n", "-h, -help, --help, help");
 	printf("\t%s\n\t\tkey file or literal (required)\n", "-k KEY, --key KEY");
-	printf("\t%s\n\t\tsalt the password - add something-somethig to the digestable message\n", "-s SALT, --salt SALT");
+	printf("\t%s\n\t\tsalt the password - add something-something to the digestable message\n", "-s SALT, --salt SALT");
 	printf("\t%s\n\t\tpepper the password - add something-something to the digested message\n", "-p PEPPER, --pepper PEPPER");
 	printf("\t%s\n\t\thow many digest elements are printed (default: 16, allowed: 1-16);\n", "-l LENGTH, --length LENGTH");
 	printf("\t\tNOTE: each digest element is 2 characters long\n");
