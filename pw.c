@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
 
 	size_t message_len = strlen(domain)+strlen(key)+strlen(salt);
 	char message[message_len];
-	snprintf(message, message_len, "%s%s%s", domain, key, salt);
+	snprintf(message, message_len+1, "%s%s%s", domain, key, salt);
 
 	unsigned char digest[16];
 	md5(message, digest);
