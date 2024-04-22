@@ -92,7 +92,8 @@ int main(int argc, char **argv) {
 	}
 
 	size_t message_len = strlen(domain)+strlen(key)+strlen(salt);
-	char message[message_len];
+	char message[message_len+1];
+	message[message_len] = '\0';
 	snprintf(message, message_len, "%s%s%s", domain, key, salt);
 
 	unsigned char digest[16];
