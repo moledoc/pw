@@ -5,7 +5,7 @@
 #define MD5_IMPLEMENTATION
 #include "md5.h"
 
-#define VERSION "0.5.1"
+#define VERSION "0.5.2"
 
 void help() {
   printf("NAME\n\tpw - vaultless password manager\n");

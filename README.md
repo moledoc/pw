@@ -36,6 +36,8 @@ Password is constructed in the following way: `md5(domain+key+salt)+pepper`, whe
 ```sh
 * pw -h
 * pw help
+* pw -v
+* pw version
 * pw -k test example@example.com/exampleuser
 * pw -k ./README.md example@example.com/exampleuser
 * pw -k test -s test_test example@example.com/exampleuser
