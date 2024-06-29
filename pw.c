@@ -5,7 +5,7 @@
 #define MD5_IMPLEMENTATION
 #include "md5.h"
 
-#define VERSION "0.4.2"
+#define VERSION "0.5.1"
 
 void help() {
   printf("NAME\n\tpw - vaultless password manager\n");
@@ -64,12 +64,18 @@ int main(int argc, char **argv) {
         fseek(fptr, 0, SEEK_END);
         long sf_size = ftell(fptr);
         rewind(fptr);
-        key = malloc(sf_size * sizeof(char));
+        key = malloc((sf_size+1) * sizeof(char));
+        key[sf_size] = '\0';
         fread(key, sizeof(char), sf_size, fptr);
         fclose(fptr);
+        if (key[sf_size-1] == '\n') {
+          key[sf_size-1] = '\0';
+        }
       } else {
-        key = malloc(strlen(argv[i + 1]) * sizeof(char));
-        strncpy(key, argv[i + 1], strlen(argv[i + 1]));
+        size_t len = strlen(argv[i + 1]);
+        key = malloc((len+1) * sizeof(char));
+        key[len] = '\0';
+        memcpy(key, argv[i+1], strlen(argv[i+1]));
       }
       ++i;
     } else if ((strcmp("-s", flag) == 0 || strcmp("--salt", flag) == 0) &&
