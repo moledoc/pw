@@ -5,14 +5,14 @@
 #define MD5_IMPLEMENTATION
 #include "md5.h"
 
-#define VERSION "0.5.2"
+#define VERSION "0.5.3"
 
 void help() {
   printf("NAME\n\tpw - vaultless password manager\n");
   printf("\nSYNOPSIS\n\tpw [-h] [-s SALT] [-p PEPPER] -k KEY DOMAIN\n");
   printf("\nOPTIONS\n");
   printf("\t%s\n\t\tprint help\n", "-h, -help, --help, help");
-  printf("\t%s\n\t\tprint version\n", "-h, -version, --version, version");
+  printf("\t%s\n\t\tprint version\n", "-v, -version, --version, version");
   printf("\t%s\n\t\tkey file or literal (required)\n", "-k KEY, --key KEY");
   printf("\t%s\n\t\tsalt the password - add something-something to the "
          "digestable message\n",
@@ -54,7 +54,8 @@ int main(int argc, char **argv) {
       help();
       return 0;
     } else if (strcmp("-v", flag) == 0 || strcmp("version", flag) == 0 ||
-        strcmp("-version", flag) == 0 || strcmp("--version", flag) == 0) {
+               strcmp("-version", flag) == 0 ||
+               strcmp("--version", flag) == 0) {
       printf("version: %s\n", VERSION);
       return 0;
     } else if ((strcmp("-k", flag) == 0 || strcmp("--key", flag) == 0) &&
@@ -64,18 +65,18 @@ int main(int argc, char **argv) {
         fseek(fptr, 0, SEEK_END);
         long sf_size = ftell(fptr);
         rewind(fptr);
-        key = malloc((sf_size+1) * sizeof(char));
+        key = malloc((sf_size + 1) * sizeof(char));
         key[sf_size] = '\0';
         fread(key, sizeof(char), sf_size, fptr);
         fclose(fptr);
-        if (key[sf_size-1] == '\n') {
-          key[sf_size-1] = '\0';
+        if (key[sf_size - 1] == '\n') {
+          key[sf_size - 1] = '\0';
         }
       } else {
         size_t len = strlen(argv[i + 1]);
-        key = malloc((len+1) * sizeof(char));
+        key = malloc((len + 1) * sizeof(char));
         key[len] = '\0';
-        memcpy(key, argv[i+1], strlen(argv[i+1]));
+        memcpy(key, argv[i + 1], strlen(argv[i + 1]));
       }
       ++i;
     } else if ((strcmp("-s", flag) == 0 || strcmp("--salt", flag) == 0) &&
