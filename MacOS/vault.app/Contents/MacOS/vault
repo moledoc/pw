@@ -1,0 +1,7 @@
+#!/bin/bash
+osascript <<EOF
+tell application "Terminal"
+    activate
+    do script "/Applications/vault.app/Contents/MacOS/vault.sh;exit"
+end tell
+EOF
