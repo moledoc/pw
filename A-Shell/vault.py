@@ -27,6 +27,7 @@ def main():
 		matches = [domain for domain in domains if search_term in domain]
 		domains = matches
 		if len(matches) == 1:
+			vertical_print(matches)
 			domain = matches[0]
 			break
 
