@@ -3,6 +3,9 @@
 #include <assert.h>
 #include <string.h>
 
+#define MD5_IMPLEMENTATION
+#include "./md5.h"
+
 typedef struct Alloc {
     void *ptr;
     struct Alloc *next; 
@@ -120,6 +123,30 @@ void vault_contents_printer(char ***vault_contents, int line_count) {
     }
 }
 
+char *pw(char *key, char *salt, char *pepper, char *domain, int length) {
+    int domain_len = strlen(domain);
+    int key_len = strlen(key);
+    int salt_len = strlen(salt);
+    int pepper_len = strlen(pepper);
+    int message_len = domain_len + key_len + salt_len;
+    char message[message_len + 1];
+    message[message_len] = '\0';
+    memcpy(message, domain, domain_len);
+    memcpy(message + domain_len, key, key_len);
+    memcpy(message + domain_len + key_len, salt, salt_len);
+
+    unsigned char digest[16];
+    md5(message, digest);
+    
+    char *pw = mmalloc(sizeof(char)*(length*2+pepper_len));
+    for (int i=0; i<length; ++i) {
+        sprintf(pw+i*2, "%02x", digest[i]);
+    }
+    sprintf(pw+length*2, "%s", pepper);
+    // putchar('\n');
+    return pw;
+}
+
 void help() {
     printf("TODO: help\n");
 }
@@ -156,7 +183,8 @@ int main(int argc, char **argv) {
     // domain = gui()
 
     // TODO: calculate password
-    // password = pw()
+    char *password = pw("test", vault_contents[0][0], vault_contents[0][1], vault_contents[0][2], 16); // vault_contents[0][3]);
+    printf("HERE pw: %s\n", password);
 
     // TODO: set to clipboard
     // prev = current_clipboard
