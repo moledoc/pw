@@ -155,9 +155,9 @@ char *pw(char *key, char *salt, char *pepper, char *domain, int length) {
     
     char *pw = mmalloc(sizeof(char)*(length*2+pepper_len+1));
     for (int i=0; i<length; ++i) {
-        sprintf(pw+i*2, "%02x", digest[i]);
+        snprintf(pw+i*2, 2+1, "%02x", digest[i]);
     }
-    sprintf(pw+length*2, "%s", pepper);
+    snprintf(pw+length*2, pepper_len+1, "%s", pepper);
     return pw;
 }
 
