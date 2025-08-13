@@ -2,13 +2,30 @@
 
 `pw` is a vaultless password manager written in C.
 
-## Synopsis
+## GUI
+
+### TODOs
+
+- [ ] TODO: read vault.contents
+- [ ] TODO: SDL2 gui to display vault contents in fzf-like manner
+	- [ ] mouse select
+	- [ ] arrow navigation
+	- [ ] fuzzy finding (can be naive-ish)
+		- [ ] IMPROVEMENT: keep map of lines that match
+		- [ ] IMPROVEMENT: tree (trie maybe) struct for more efficiency
+- [ ] TODO: asking master password
+- [ ] TODO: calculate password
+- [ ] TODO: store password in clipboard for x seconds, revert clipboard value (unless it changed in the meantime)
+
+## CLI
+
+### Synopsis
 
 ```text
 pw [-h] [-s SALT] [-p PEPPER] -k KEY DOMAIN
 ```
 
-## Options
+### Options
 
 ```text
 -h, -help, --help, help
@@ -26,12 +43,12 @@ DOMAIN
 	password domain (required)
 ```
 
-## Description
+### Description
 
 `pw` is vaultless password manager as it doesn't store any password - it will calculate the password based on provided input.
 Password is constructed in the following way: `md5(domain+key+salt)+pepper`, where `+` denotes string concatenation.
 
-## Examples
+### Examples
 
 ```sh
 * pw -h
