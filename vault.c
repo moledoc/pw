@@ -6,6 +6,9 @@
 #define MD5_IMPLEMENTATION
 #include "./md5.h"
 
+// MAYBE: TODO: use calloc instead of malloc
+// MAYBE: TODO: use snprintf instead of sprintf
+
 typedef struct Alloc {
     void *ptr;
     struct Alloc *next; 
@@ -34,6 +37,16 @@ void *mmalloc(size_t size) {
     }
     assert(ptr != NULL && "unexpected NULL from malloc");
     memset(ptr, 0, size);
+
+    Alloc *alloced = malloc(sizeof(Alloc)*1);
+    if (alloced == NULL) {
+        fprintf(stderr, "[ERROR]: malloc returned NULL on Alloc\n");
+        mfree();
+    }
+    assert(alloced != NULL && "unexpected NULL from malloc");
+    alloced->ptr = ptr;
+    alloced->next = alloced_ptrs;
+    alloced_ptrs = alloced;
     return ptr;
 }
 
@@ -138,12 +151,11 @@ char *pw(char *key, char *salt, char *pepper, char *domain, int length) {
     unsigned char digest[16];
     md5(message, digest);
     
-    char *pw = mmalloc(sizeof(char)*(length*2+pepper_len));
+    char *pw = mmalloc(sizeof(char)*(length*2+pepper_len+1));
     for (int i=0; i<length; ++i) {
         sprintf(pw+i*2, "%02x", digest[i]);
     }
     sprintf(pw+length*2, "%s", pepper);
-    // putchar('\n');
     return pw;
 }
 
@@ -152,9 +164,6 @@ void help() {
 }
 
 int main(int argc, char **argv) {
-
-    alloced_ptrs = malloc(sizeof(Alloc));
-
     char *arg_filename;
     int arg_time = 0;
 
@@ -182,9 +191,10 @@ int main(int argc, char **argv) {
     // TODO: GUI for selecting domain
     // domain = gui()
 
-    // TODO: calculate password
+    // TODO: parse length properly
+    // TODO: use actual key to calc password
     char *password = pw("test", vault_contents[0][0], vault_contents[0][1], vault_contents[0][2], 16); // vault_contents[0][3]);
-    printf("HERE pw: %s\n", password);
+    printf("%s\n", password);
 
     // TODO: set to clipboard
     // prev = current_clipboard
