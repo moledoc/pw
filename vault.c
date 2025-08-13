@@ -7,7 +7,9 @@
 #include "./md5.h"
 
 // MAYBE: TODO: use calloc instead of malloc
-// MAYBE: TODO: use snprintf instead of sprintf
+// NOTE: while deving
+// clear && clang -g -fsanitize=address vault.c && ./a.out -f /Applications/vault.app/Contents/MacOS/vault.contents
+// clang pw.c -o verify && ./verify -k test -s salt -p pepper domain
 
 typedef struct Alloc {
     void *ptr;
@@ -193,7 +195,8 @@ int main(int argc, char **argv) {
 
     // TODO: parse length properly
     // TODO: use actual key to calc password
-    char *password = pw("test", vault_contents[0][0], vault_contents[0][1], vault_contents[0][2], 16); // vault_contents[0][3]);
+    char *password = pw("test", "salt", "pepper", "domain", 16); // vault_contents[0][3]);
+    // char *password = pw("test", vault_contents[0][0], vault_contents[0][1], vault_contents[0][2], 16); // vault_contents[0][3]);
     printf("%s\n", password);
 
     // TODO: set to clipboard
