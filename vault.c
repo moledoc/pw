@@ -232,8 +232,6 @@ void sleep_for(int amount) {
 }
 
 #elif __linux__
-// TODO: Linux clipboard code
-
 
 char *read_from_clipboard() {
     int buf_size = sizeof(char)*(1024+1);
@@ -265,7 +263,63 @@ void sleep_for(int amount) {
 }
 
 #elif _WIN32
-// TODO: Windows clipboard code
+
+// is correct, mmalloc is self defined wrapper around malloc:
+char *read_from_clipboard() {
+    int buf_size = 1024;
+    char *buf = mmalloc(sizeof(char)*(buf_size+1));
+    memset(buf, 0, buf_size+1);
+
+    if (OpenClipboard(NULL) == 0) {
+        goto fastexit;
+    }
+    HANDLE hData = GetClipboardData(CF_TEXT);
+    if (hData == NULL) {
+        goto exit;
+    }
+
+    char *clipboard = (char *)GlobalLock(hData);
+    if (clipboard == NULL) {
+        CloseClipboard();
+        goto exit;
+    }
+    size_t clipboard_len = strlen(clipboard);
+    size_t size = clipboard_len;
+    if (buf_size < clipboard_len) {
+        size = buf_size;
+    }
+    memcpy(buf, clipboard, size);
+
+    GlobalUnlock(hData);
+exit:
+    CloseClipboard();
+fastexit:
+    return buf;
+}
+
+void write_to_clipboard(const char *text) {
+    size_t text_len = strlen(text) + 1;
+    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, text_len); // hMem to SetClipboardData hands over ownership of the alloced memory
+    if (hMem == NULL) {
+        return;
+    }
+    char *clipboard = (char *)GlobalLock(hMem);
+    if (clipboard == NULL) {
+        GlobalFree(hMem);
+        return;
+    }
+    memcpy(clipboard, text, text_len);
+    GlobalUnlock(hMem);
+    if (OpenClipboard(NULL) == 0) {
+        GlobalFree(hMem);
+        return;
+    }
+    EmptyClipboard();
+    if (SetClipboardData(CF_TEXT, hMem) == NULL) {
+        GlobalFree(hMem);
+    }
+    CloseClipboard();
+}
 
 void sleep_for(int amount) {
     Sleep(1000*amount);
