@@ -6,16 +6,23 @@
 
 ### TODOs
 
-- [ ] TODO: read vault.contents
-- [ ] TODO: SDL2 gui to display vault contents in fzf-like manner
+- [x] read vault.contents
+- [ ] SDL2 gui to display vault contents in fzf-like manner
 	- [ ] mouse select
 	- [ ] arrow navigation
 	- [ ] fuzzy finding (can be naive-ish)
 		- [ ] IMPROVEMENT: keep map of lines that match
 		- [ ] IMPROVEMENT: tree (trie maybe) struct for more efficiency
-- [ ] TODO: asking master password
-- [ ] TODO: calculate password
-- [ ] TODO: store password in clipboard for x seconds, revert clipboard value (unless it changed in the meantime)
+- [ ] asking master password
+- [x] calculate password
+- [x] store password in clipboard for x seconds, revert clipboard value (unless it changed in the meantime)
+- [ ] update README:
+	- dependencies per platform
+	- list usage
+- [ ] test on:
+	- [ ] mac
+	- [ ] linux
+	- [ ] windows
 
 ## CLI
 
