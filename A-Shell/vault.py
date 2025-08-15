@@ -37,9 +37,11 @@ def main():
 	salt = sline_elems[0]
 	pepper = sline_elems[1]
 	domain = sline_elems[2]
-	extra = [e.replace("\"", "") for e in sline_elems[3:]]
+	digest_len = sline_elems[3] if len(sline_elems) == 4 else ""
+	if len(digest_len) > 0:
+		digest_len = ["-l", digest_len]
 
-	cmd = ["pw", "-k", "./.pw.key", "-s", f"{salt}", "-p", f"{pepper}", *extra, f"{domain}"] # NOTE: might need to change path to key file (-k flag)
+	cmd = ["pw", "-k", "./.pw.key", "-s", f"{salt}", "-p", f"{pepper}", *digest_len, "-d", f"{domain}"] # NOTE: might need to change path to key file (-k flag)
 	p1 = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True)
 	p1.wait()
 	p2 = subprocess.Popen(["pbcopy"], stdin=p1.stdout, text=True)

@@ -1,0 +1,10 @@
+salt_test pepper_test test@test.com
+salt_test pepper_test test@test.com 4
+  test@test.com
+  test@test.com 10
+salt_test  test@test.com
+salt_test  test@test.com 2
+ pepper_test test@test.com
+ pepper_test test@test.com 8
+i019efj ad_jnida example@example.com
+8uij2daf9ijudffad R@!@# example@example.com 16

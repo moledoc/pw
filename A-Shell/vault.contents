@@ -1,3 +1,2 @@
-example_salt example_pepper example/example@example.com "-l 4"]
-
-example_salt example_pepper example2/example@example.com "-l 5"
+example_salt example_pepper example.com/example@example.com
+example_salt2 example_pepper2 example2.com/example@example.com 4
