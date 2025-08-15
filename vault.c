@@ -10,7 +10,7 @@
 
 // MAYBE: TODO: use calloc instead of malloc
 // NOTE: while deving
-// clear && clang -g -fsanitize=address vault.c && ./a.out -f /Applications/vault.app/Contents/MacOS/vault.contents
+// clear && clang -g -fsanitize=address vault.c && ./a.out -f ./tests/inputs.txt
 // clang pw.c -o verify && ./verify -k test -s salt -p pepper domain
 
 typedef struct Alloc {
@@ -65,16 +65,6 @@ long file_size(char *filename) {
 char *carve_str(char *contents, int contents_len, int offset, int *carved_len) {
     char c;
     while (offset+(*carved_len) < contents_len && (c = contents[offset+(*carved_len)]) != ' ' && c != '\n' && c != EOF) {
-       
-        if (c == '"') { // NOTE: naive string parsing, not checking escaped quotes (\")
-            *carved_len += 1; // opening quote
-            while (offset+(*carved_len) < contents_len && contents[offset+(*carved_len)] != '"') {
-                *carved_len += 1;
-            }
-            *carved_len += 1; // closing quote
-            break;
-        }
-
         *carved_len += 1;
     }
     // *carved_len -= 1; // account for ' ' || '\n'
@@ -130,7 +120,7 @@ void vault_contents_printer(char ***vault_contents, int line_count) {
                 vault_contents[i][1],
                 vault_contents[i][2]);
         } else {
-            printf("line %d: salt '%s', pepper '%s', domain '%s', extra '%s'\n", 
+            printf("line %d: salt '%s', pepper '%s', domain '%s', digest_len '%s'\n", 
                 i+1,
                 vault_contents[i][0],
                 vault_contents[i][1],
@@ -140,7 +130,7 @@ void vault_contents_printer(char ***vault_contents, int line_count) {
     }
 }
 
-char *pw(char *key, char *salt, char *pepper, char *domain, int length) {
+char *pw(char *key, char *salt, char *pepper, char *domain, int digest_len) {
     int domain_len = strlen(domain);
     int key_len = strlen(key);
     int salt_len = strlen(salt);
@@ -155,17 +145,49 @@ char *pw(char *key, char *salt, char *pepper, char *domain, int length) {
     unsigned char digest[16];
     md5(message, digest);
     
-    char *pw = mmalloc(sizeof(char)*(length*2+pepper_len+1));
-    for (int i=0; i<length; ++i) {
+    char *pw = mmalloc(sizeof(char)*(digest_len*2+pepper_len+1));
+    for (int i=0; i<digest_len; ++i) {
         snprintf(pw+i*2, 2+1, "%02x", digest[i]);
     }
-    snprintf(pw+length*2, pepper_len+1, "%s", pepper);
+    snprintf(pw+digest_len*2, pepper_len+1, "%s", pepper);
     return pw;
 }
 
 void help() {
     printf("TODO: help\n");
 }
+
+typedef struct {
+    char *master_key;
+    char *salt;
+    char *pepper;
+    char *domain;
+    int digest_len;
+} PwData;
+
+// TODO: GUI for selecting domain
+PwData *gui(char ***vault_contents, int line_count) {
+    char *master_key = "test"; // TODO: ask master key
+    int idx = 0;// TODO: select domain
+
+    PwData *pw_data = mmalloc(sizeof(PwData)*1);
+    
+    pw_data->master_key = master_key;
+
+    pw_data->salt = vault_contents[idx][0];
+    pw_data->pepper = vault_contents[idx][1];
+    pw_data->domain = vault_contents[idx][2];
+    pw_data->digest_len = 16;
+    if (vault_contents[idx][3] != NULL) {
+        int tmp_digest_len = atoi(vault_contents[0][3]);
+        if (0 < tmp_digest_len && tmp_digest_len <= 16) {
+            pw_data->digest_len = tmp_digest_len;
+        }
+    }
+
+    return pw_data;
+}
+
 
 int main(int argc, char **argv) {
     char *arg_filename;
@@ -194,14 +216,15 @@ int main(int argc, char **argv) {
     int line_count = 0;
     char ***vault_contents = read_vault_contents(arg_filename, &line_count);
     vault_contents_printer(vault_contents, line_count);
+    if (line_count == 0) {
+        mfree();
+        fprintf(stdout, "vault is empty\n");
+        return 0;
+    }
 
-    // TODO: GUI for selecting domain
-    // domain = gui()
+    PwData *pw_data = gui(vault_contents, line_count);
 
-    // TODO: parse length properly
-    // TODO: use actual key to calc password
-    char *password = pw("test", "salt", "pepper", "domain", 16); // vault_contents[0][3]);
-    // char *password = pw("test", vault_contents[0][0], vault_contents[0][1], vault_contents[0][2], 16); // vault_contents[0][3]);
+    char *password = pw(pw_data->master_key, pw_data->salt, pw_data->pepper, pw_data->domain, pw_data->digest_len);
     printf("%s\n", password);
 
     // TODO: set to clipboard

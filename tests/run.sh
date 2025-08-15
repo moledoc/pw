@@ -11,7 +11,7 @@ while IFS= read -r line; do
         pw_old=$(pw_old -k "test" $salt $pepper $digest_len $domain | tr -d '\n')
         test -n "$domain" && domain="-d $domain"
         pw_new=$(pw -k "test" $salt $pepper $digest_len $domain | tr -d '\n')
-        test "$pw_old" = "$pw_new" || echo "diff:\n\tline: $line\n\told: $pw_old\n\tnew: $pw_new"
+        test "$pw_old" = "$pw_new" && echo "$pw_new" || echo "diff:\n\tline: $line\n\told: $pw_old\n\tnew: $pw_new"
     done
 done < $filename
 
