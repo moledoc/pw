@@ -234,6 +234,32 @@ void sleep_for(int amount) {
 #elif __linux__
 // TODO: Linux clipboard code
 
+
+char *read_from_clipboard() {
+    int buf_size = sizeof(char)*(1024+1);
+    char *buf = mmalloc(sizeof(char)*buf_size);
+    memset(buf, 0, buf_size);
+
+    FILE *pipe = popen("xclip -o -selection clipboard", "r");
+    if (pipe == NULL) {
+        return "";
+    }
+    // MAYBE: TODO: handle longer than set buffer size from clipboard
+    fgets(buf, buf_size, pipe);
+    pclose(pipe);
+    return buf;
+}
+
+void write_to_clipboard(const char *text) {
+    FILE *pipe = popen("xclip -selection clipboard", "w");
+    if (pipe == NULL) {
+        return;
+    }
+    fputs(text, pipe);
+    pclose(pipe);
+}
+
+
 void sleep_for(int amount) {
     sleep(amount);
 }
