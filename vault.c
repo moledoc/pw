@@ -6,6 +6,8 @@
 #define MD5_IMPLEMENTATION
 #include "./md5.h"
 
+#include "version.h"
+
 // MAYBE: TODO: use calloc instead of malloc
 // NOTE: while deving
 // clear && clang -g -fsanitize=address vault.c && ./a.out -f /Applications/vault.app/Contents/MacOS/vault.contents
@@ -178,6 +180,9 @@ int main(int argc, char **argv) {
         } else if ((strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) || strcmp(argv[i], "help") == 0) {
             help();
             exit(0);
+        } else if (strcmp("-v", argv[i]) == 0 || strcmp("version", argv[i]) == 0 || strcmp("-version", argv[i]) == 0 || strcmp("--version", argv[i]) == 0) {
+            printf("version: %s\n", VERSION);
+            return 0;
         } else if ((strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "--time") == 0)) {
             int atoi_res = atoi(argv[i]);
             if (atoi_res > 0) {
