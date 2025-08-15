@@ -3,10 +3,18 @@
 #include <assert.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 #define MD5_IMPLEMENTATION
 #include "./md5.h"
 
 #include "version.h"
+
+#define SLEEP_FOR 10 // in seconds
 
 // MAYBE: TODO: use calloc instead of malloc
 // NOTE: while deving
@@ -189,9 +197,59 @@ PwData *gui(char ***vault_contents, int line_count) {
 }
 
 
+void write_to_clipboard(const char *text);
+char *read_from_clipboard();
+void sleep_for(int amount);
+
+#ifdef __APPLE__
+
+char *read_from_clipboard() {
+    int buf_size = sizeof(char)*(1024+1);
+    char *buf = mmalloc(sizeof(char)*buf_size);
+    memset(buf, 0, buf_size);
+
+    FILE *pipe = popen("pbpaste", "r");
+    if (pipe == NULL) {
+        return "";
+    }
+    // MAYBE: TODO: handle longer than set buffer size from clipboard
+    fgets(buf, buf_size, pipe);
+    pclose(pipe);
+    return buf;
+}
+
+void write_to_clipboard(const char *text) {
+    FILE *pipe = popen("pbcopy", "w");
+    if (pipe == NULL) {
+        return;
+    }
+    fputs(text, pipe);
+    pclose(pipe);
+}
+
+void sleep_for(int amount) {
+    sleep(amount);
+}
+
+#elif __linux__
+// TODO: Linux clipboard code
+
+void sleep_for(int amount) {
+    sleep(amount);
+}
+
+#elif _WIN32
+// TODO: Windows clipboard code
+
+void sleep_for(int amount) {
+    Sleep(1000*amount);
+}
+
+#endif
+
 int main(int argc, char **argv) {
-    char *arg_filename;
-    int arg_time = 0;
+    char *arg_filename = NULL;
+    int arg_sleep = SLEEP_FOR;
 
     for (int i=0; i<argc; ++i) {
         if ((strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--filename") == 0) && i+1 < argc) {
@@ -205,12 +263,17 @@ int main(int argc, char **argv) {
         } else if (strcmp("-v", argv[i]) == 0 || strcmp("version", argv[i]) == 0 || strcmp("-version", argv[i]) == 0 || strcmp("--version", argv[i]) == 0) {
             printf("version: %s\n", VERSION);
             return 0;
-        } else if ((strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "--time") == 0)) {
+        } else if ((strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--sleep") == 0)) {
             int atoi_res = atoi(argv[i]);
             if (atoi_res > 0) {
-                arg_time = atoi_res;
+                arg_sleep = atoi_res;
             }
         }
+    }
+    
+    if (arg_filename == NULL) {
+        fprintf(stderr, "invalid argument: filename missing\n");
+        return 1;
     }
 
     int line_count = 0;
@@ -227,11 +290,14 @@ int main(int argc, char **argv) {
     char *password = pw(pw_data->master_key, pw_data->salt, pw_data->pepper, pw_data->domain, pw_data->digest_len);
     printf("%s\n", password);
 
-    // TODO: set to clipboard
-    // prev = current_clipboard
-    // clipboard_set(password)
+    char *prev = read_from_clipboard();
+    write_to_clipboard((const char *)password);
 
-    // TODO: revert password after x sec from clipboard, if needed
-    // if current_clipboard == password: clipboard_set(prev)
+    sleep_for(arg_sleep); // TODO: add note to README that recommended to run this program in background because of this line
+
+    char *cur = read_from_clipboard();
+    if (strcmp(cur, password) == 0) {
+        write_to_clipboard(prev);
+    }
     mfree();
 }
