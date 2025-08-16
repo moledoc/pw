@@ -175,7 +175,8 @@ typedef struct {
 
 // TODO: GUI for selecting domain
 PwData *gui(char ***vault_contents, int line_count) {
-    char *master_key = "test"; // TODO: ask master key
+    int master_key_max_len = 1024;
+    char *master_key = mmalloc(sizeof(char)*(master_key_max_len+1)); // TODO: ask master key
     int idx = 0;// TODO: select domain
 
     PwData *pw_data = mmalloc(sizeof(PwData)*1);
@@ -206,7 +207,6 @@ void sleep_for(int amount);
 char *read_from_clipboard() {
     int buf_size = sizeof(char)*(1024+1);
     char *buf = mmalloc(sizeof(char)*buf_size);
-    memset(buf, 0, buf_size);
 
     FILE *pipe = popen("pbpaste", "r");
     if (pipe == NULL) {
@@ -236,7 +236,6 @@ void sleep_for(int amount) {
 char *read_from_clipboard() {
     int buf_size = sizeof(char)*(1024+1);
     char *buf = mmalloc(sizeof(char)*buf_size);
-    memset(buf, 0, buf_size);
 
     FILE *pipe = popen("xclip -o -selection clipboard", "r");
     if (pipe == NULL) {
@@ -268,7 +267,6 @@ void sleep_for(int amount) {
 char *read_from_clipboard() {
     int buf_size = 1024;
     char *buf = mmalloc(sizeof(char)*(buf_size+1));
-    memset(buf, 0, buf_size+1);
 
     if (OpenClipboard(NULL) == 0) {
         goto fastexit;
