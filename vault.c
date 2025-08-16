@@ -22,8 +22,8 @@
 
 #define SLEEP_FOR 10 // in seconds
 
-#define SCREEN_WIDTH 960
-#define SCREEN_HEIGHT 540
+#define WINDOW_WIDTH 960
+#define WINDOW_HEIGHT 540
 #define FONT_SIZE 20
 #define FRAME_DELAY 16 // in milliseconds; ~60FPS
 
@@ -204,12 +204,26 @@ typedef struct {
     int digest_len;
 } PwData;
 
+typedef struct {
+    int w;
+    int h;
+    SDL_Texture *t;
+} Texture;
+
 // TODO: GUI for selecting domain
 PwData *gui(char ***vault_contents, int line_count) {
     int master_key_max_len = 1024;
     char *master_key = mmalloc(sizeof(char)*(master_key_max_len+1)); // TODO: ask master key
 
     char *master_key_prompt = "Provide Master Key";
+
+    Texture **textures = mmalloc(sizeof(Texture *)*line_count);
+    SDL_Rect **texture_rects = mmalloc(sizeof(SDL_Rect *)*line_count);
+    int textures_count = 0;
+    for (int i=0; i<line_count; i++) {
+        textures[i] = mmalloc(sizeof(Texture)*1);
+        texture_rects[i] = mmalloc(sizeof(SDL_Rect)*1);
+    }
 
     ///////////////////////////
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -223,9 +237,12 @@ PwData *gui(char ***vault_contents, int line_count) {
         return NULL;
     }
 
+
+    int window_w = WINDOW_WIDTH;
+    int window_h = WINDOW_HEIGHT;
     SDL_Window *window = SDL_CreateWindow("vault", SDL_WINDOWPOS_UNDEFINED,
-                                        SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH,
-                                        SCREEN_HEIGHT, SDL_WINDOW_RESIZABLE);
+                                        SDL_WINDOWPOS_UNDEFINED, window_w,
+                                        window_h, SDL_WINDOW_RESIZABLE);
 
     if (window == NULL) {
         fprintf(stderr, "failed to create window: '%s'\n", SDL_GetError());
@@ -254,28 +271,28 @@ PwData *gui(char ***vault_contents, int line_count) {
 
     SDL_RenderClear(renderer);
     
-    SDL_Surface *text_surface = TTF_RenderUTF8_Solid(font, master_key_prompt, rgb_to_sdl_color(0x00000));
-    if (text_surface == NULL) {
+    // MasterKeyPrompt texture
+    SDL_Surface *master_key_prompt_surface = TTF_RenderUTF8_Solid(font, master_key_prompt, rgb_to_sdl_color(0x00000));
+    if (master_key_prompt_surface == NULL) {
         fprintf(stderr, "failed to create text surface: %s\n", TTF_GetError());
         return NULL;
     }
 
-    SDL_Texture *text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
-    if (text_texture == NULL) {
+    textures[0]->w = master_key_prompt_surface->w;
+    textures[0]->h = master_key_prompt_surface->h;
+    textures[0]->t = SDL_CreateTextureFromSurface(renderer, master_key_prompt_surface);
+    if (textures[0]->t == NULL) {
         fprintf(stderr, "failed to create text texture: %s\n", SDL_GetError());
         return NULL;
     }
-    int t_width = text_surface->w;
-    int t_height = text_surface->h;
-    SDL_FreeSurface(text_surface);
+    SDL_FreeSurface(master_key_prompt_surface);
+    textures_count = 1;
 
-    int w;
-    int h;
-    SDL_GetWindowSize(window, &w, &h);
-    SDL_Rect text_rect = {w/2, h/2, t_width, t_height};
+    SDL_GetWindowSize(window, &window_w, &window_h);
+    texture_rects[0] = &(SDL_Rect){(window_w-textures[0]->w)/2, (window_h-textures[0]->h)/2, textures[0]->w, textures[0]->h};
+    /////
     
-    SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
- 
+    SDL_RenderCopy(renderer, textures[0]->t, NULL, texture_rects[0]);
     SDL_RenderPresent(renderer);
 
     float elapsed = 0;
@@ -303,18 +320,22 @@ PwData *gui(char ***vault_contents, int line_count) {
         }
 
         SDL_RenderClear(renderer);
-
-        SDL_GetWindowSize(window, &w, &h);
-        SDL_Rect text_rect = {(w-t_width)/2, (h-t_height)/2, t_width, t_height};
-        
-        SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
-        
+        SDL_GetWindowSize(window, &window_w, &window_h);
+        for (int i=0; i<textures_count; i++){
+            texture_rects[i] = &(SDL_Rect){(window_w-textures[0]->w)/2, (window_h-textures[0]->h)/2, textures[0]->w, textures[0]->h};
+            SDL_RenderCopy(renderer, textures[i]->t, NULL, texture_rects[i]);
+        }
         SDL_RenderPresent(renderer);
+
         end = SDL_GetTicks64();
         elapsed = end - start;
         if (elapsed <= FRAME_DELAY) {
             SDL_Delay(FRAME_DELAY - elapsed);
         }
+    }
+
+    for (int i=0; i<textures_count; i++) {
+        SDL_DestroyTexture(textures[i]->t);
     }
     TTF_CloseFont(font);
     SDL_DestroyWindow(window);
@@ -322,7 +343,7 @@ PwData *gui(char ***vault_contents, int line_count) {
     SDL_Quit();
     ///////////////////////////
 
-    
+
     int idx = 0;// TODO: select domain
 
     PwData *pw_data = mmalloc(sizeof(PwData)*1);
