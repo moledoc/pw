@@ -42,7 +42,7 @@ MD5_BYTE MD5_PADDING[64] = {
 size_t md5_strlen(const unsigned char *s) {
 	char *s_cpy = (char *)s;
 	size_t n = 0;
-	for (; (*s++) != '\0'; ++n) {
+	for (; (*s_cpy++) != '\0'; ++n) {
 		;
 	}
 	return n;
