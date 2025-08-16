@@ -1,0 +1,38 @@
+
+INCLUDES =
+DEFINES =
+CCFLAGS = 
+DEVFLAGS = -g -fsanitize=address
+LDFLAGS = -lm
+SDLFLAGS =
+
+# TODO: _WIN32 flags
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+build: dirs
+INCLUDES += 
+DEFINES += -D_REENTRANT
+# SDLFLAGS = `pkg-config --cflags --libs sdl2 SDL2_ttf`
+endif
+ifeq ($(UNAME_S),Darwin)
+# CCFLAGS += -arch arm64
+INCLUDES += -I/opt/homebrew/include
+DEFINES += -DOSX -D_THREAD_SAFE
+LDFLAGS += -L/opt/homebrew/lib -lSDL2 -lSDL2_ttf
+# SDLFLAGS = `sdl2-config --libs --cflags` -lSDL2_ttf
+endif
+
+dirs:
+	mkdir -p bin
+
+build: dirs
+	clang -Wall -o ./bin/vault ./vault.c ${CCFLAGS} ${INCLUDES} ${DEFINES} ${LDFLAGS} ${SDLFLAGS}
+
+dev: dirs
+	clang -Wall -o ./bin/vault ./vault.c ${DEVFLAGS} ${CCFLAGS} ${INCLUDES} ${DEFINES} ${LDFLAGS} ${SDLFLAGS}
+
+run: ./bin/vault
+	./bin/vault -f ./tests/inputs.txt
+
+clean:
+	rm -rf bin

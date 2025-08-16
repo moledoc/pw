@@ -2,19 +2,50 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include <stdbool.h>
 
-#ifdef _WIN32
-#include <windows.h>
-#else
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+
+#ifdef __APPLE__
 #include <unistd.h>
+#elif __linux__
+#include <unistd.h>
+#elif _WIN32
+#include <windows.h>
 #endif
 
 #define MD5_IMPLEMENTATION
 #include "./md5.h"
-
 #include "version.h"
 
+
 #define SLEEP_FOR 10 // in seconds
+
+#define SCREEN_WIDTH 960
+#define SCREEN_HEIGHT 540
+#define FONT_SIZE 20
+#define FRAME_DELAY 16 // in milliseconds; ~60FPS
+
+#ifdef __APPLE__
+#define GUI_FONT "/System/Library/Fonts/Monaco.ttf"
+#elif __linux__
+#define GUI_FONT "/usr/share/fonts/truetype/freefont/FreeMono.ttf"
+#elif _WIN32
+#define GUI_FONT "TODO:"
+#endif
+
+#define rgb_to_sdl_color(rgb)                                                  \
+  ((SDL_Color){rgb >> (8 * 2) & 0xFF, rgb >> (8 * 1) & 0xFF,                   \
+               rgb >> (8 * 0) & 0xFF, 0xFF})
+
+#define rgba_to_sdl_color(rgba)                                                \
+  ((SDL_Color){                                                                \
+      rgba >> (8 * 3) & 0xFF,                                                  \
+      rgba >> (8 * 2) & 0xFF,                                                  \
+      rgba >> (8 * 1) & 0xFF,                                                  \
+      rgba >> (8 * 0) & 0xFF,                                                  \
+  })
 
 // MAYBE: TODO: use calloc instead of malloc
 // NOTE: while deving
@@ -177,6 +208,121 @@ typedef struct {
 PwData *gui(char ***vault_contents, int line_count) {
     int master_key_max_len = 1024;
     char *master_key = mmalloc(sizeof(char)*(master_key_max_len+1)); // TODO: ask master key
+
+    char *master_key_prompt = "Provide Master Key";
+
+    ///////////////////////////
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        fprintf(stderr, "SDL_Init failed: '%s'\n", SDL_GetError());
+        return NULL;
+    }
+
+    if (TTF_Init() < 0) {
+        fprintf(stderr, "TTF_Init failed: '%s'\n", TTF_GetError());
+        SDL_Quit();
+        return NULL;
+    }
+
+    SDL_Window *window = SDL_CreateWindow("vault", SDL_WINDOWPOS_UNDEFINED,
+                                        SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH,
+                                        SCREEN_HEIGHT, SDL_WINDOW_RESIZABLE);
+
+    if (window == NULL) {
+        fprintf(stderr, "failed to create window: '%s'\n", SDL_GetError());
+        SDL_Quit();
+        return NULL;
+    }
+
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
+    if (renderer == NULL) {
+        fprintf(stderr, "failed to create renderer: '%s'\n", SDL_GetError());
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return NULL;
+    }
+
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 1);
+
+    TTF_Font *font = TTF_OpenFont(GUI_FONT, FONT_SIZE);
+    if (font == NULL) {
+        fprintf(stderr, "failed to load font: %s\n", TTF_GetError());
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+    return NULL;
+    }
+
+    SDL_RenderClear(renderer);
+    
+    SDL_Surface *text_surface = TTF_RenderUTF8_Solid(font, master_key_prompt, rgb_to_sdl_color(0x00000));
+    if (text_surface == NULL) {
+        fprintf(stderr, "failed to create text surface: %s\n", TTF_GetError());
+        return NULL;
+    }
+
+    SDL_Texture *text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
+    if (text_texture == NULL) {
+        fprintf(stderr, "failed to create text texture: %s\n", SDL_GetError());
+        return NULL;
+    }
+    int t_width = text_surface->w;
+    int t_height = text_surface->h;
+    SDL_FreeSurface(text_surface);
+
+    int w;
+    int h;
+    SDL_GetWindowSize(window, &w, &h);
+    SDL_Rect text_rect = {w/2, h/2, t_width, t_height};
+    
+    SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
+ 
+    SDL_RenderPresent(renderer);
+
+    float elapsed = 0;
+    bool keep_window_open = true;
+    Uint32 start = SDL_GetTicks64();
+    Uint32 end = SDL_GetTicks64();
+    while (keep_window_open) {
+        start = SDL_GetTicks64();
+        SDL_Event sdl_event = {0};
+        while (SDL_PollEvent(&sdl_event) > 0) {
+            // QUIT START
+            if (sdl_event.type == SDL_QUIT ||
+                    (sdl_event.type == SDL_KEYDOWN &&
+                        sdl_event.key.state == SDL_PRESSED &&
+                        sdl_event.key.keysym.sym == SDLK_c &&
+                        sdl_event.key.keysym.mod & KMOD_CTRL) || 
+                        (sdl_event.type == SDL_KEYDOWN &&
+                            sdl_event.key.state == SDL_PRESSED &&
+                            sdl_event.key.keysym.sym == SDLK_d &&
+                            sdl_event.key.keysym.mod & KMOD_CTRL)) {
+                keep_window_open = false;
+            return NULL;
+            // QUIT END
+            }
+        }
+
+        SDL_RenderClear(renderer);
+
+        SDL_GetWindowSize(window, &w, &h);
+        SDL_Rect text_rect = {(w-t_width)/2, (h-t_height)/2, t_width, t_height};
+        
+        SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
+        
+        SDL_RenderPresent(renderer);
+        end = SDL_GetTicks64();
+        elapsed = end - start;
+        if (elapsed <= FRAME_DELAY) {
+            SDL_Delay(FRAME_DELAY - elapsed);
+        }
+    }
+    TTF_CloseFont(font);
+    SDL_DestroyWindow(window);
+    SDL_DestroyRenderer(renderer);
+    SDL_Quit();
+    ///////////////////////////
+
+    
     int idx = 0;// TODO: select domain
 
     PwData *pw_data = mmalloc(sizeof(PwData)*1);
@@ -364,6 +510,9 @@ int main(int argc, char **argv) {
     }
 
     PwData *pw_data = gui(vault_contents, line_count);
+    if (pw_data == NULL) { // NULL doesn't mean an error, maybe we cancelled the selection
+        return 0;
+    }
 
     char *password = pw(pw_data->master_key, pw_data->salt, pw_data->pepper, pw_data->domain, pw_data->digest_len);
     printf("%s\n", password);
