@@ -19,6 +19,8 @@
 - [ ] update README:
 	- dependencies per platform
 	- list usage
+	- list nuances:
+		- master key background color meaning
 - [ ] test on:
 	- [ ] mac
 	- [ ] linux

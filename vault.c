@@ -9,8 +9,10 @@
 
 #ifdef __APPLE__
 #include <unistd.h>
+#include <pthread.h>
 #elif __linux__
 #include <unistd.h>
+#include <pthread.h>
 #elif _WIN32
 #include <windows.h>
 #endif
@@ -19,7 +21,7 @@
 #include "./md5.h"
 #include "version.h"
 
-
+#define ALLOWED_MASTER_KEY_LEN 1024
 #define SLEEP_FOR 10 // in seconds
 
 #define WINDOW_WIDTH 960
@@ -46,6 +48,11 @@
       rgba >> (8 * 1) & 0xFF,                                                  \
       rgba >> (8 * 0) & 0xFF,                                                  \
   })
+
+
+#define WHITE rgb_to_sdl_color(0xF0EEE9)
+#define RED rgb_to_sdl_color(0xdc322f)
+#define BLUE rgb_to_sdl_color(0x268bd2)
 
 // MAYBE: TODO: use calloc instead of malloc
 // NOTE: while deving
@@ -210,20 +217,151 @@ typedef struct {
     SDL_Texture *t;
 } Texture;
 
-// TODO: GUI for selecting domain
-PwData *gui(char ***vault_contents, int line_count) {
-    int master_key_max_len = 1024;
-    char *master_key = mmalloc(sizeof(char)*(master_key_max_len+1)); // TODO: ask master key
+char *ask_master_password(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font) {
+    int master_key_max_len = ALLOWED_MASTER_KEY_LEN;
+    int input_offset = 0;
+    int prev_input_offset = 0;
+
+    char *master_key = mmalloc(sizeof(char)*(master_key_max_len+1));
 
     char *master_key_prompt = "Provide Master Key";
 
-    Texture **textures = mmalloc(sizeof(Texture *)*line_count);
-    SDL_Rect **texture_rects = mmalloc(sizeof(SDL_Rect *)*line_count);
-    int textures_count = 0;
-    for (int i=0; i<line_count; i++) {
-        textures[i] = mmalloc(sizeof(Texture)*1);
-        texture_rects[i] = mmalloc(sizeof(SDL_Rect)*1);
+    Texture *master_key_texture = mmalloc(sizeof(Texture)*1);
+    SDL_Rect *master_key_rect = mmalloc(sizeof(SDL_Rect)*1);
+
+    int window_w;
+    int window_h;
+    SDL_GetWindowSize(window, &window_w, &window_h);
+    int prev_window_w = window_w;
+    int prev_window_h = window_h;
+    
+    // MasterKeyPrompt texture
+    SDL_Surface *master_key_prompt_surface = TTF_RenderUTF8_Solid(font, master_key_prompt, rgb_to_sdl_color(0x00000));
+    if (master_key_prompt_surface == NULL) {
+        fprintf(stderr, "failed to create text surface: %s\n", TTF_GetError());
+        return NULL;
     }
+
+    master_key_texture->w = master_key_prompt_surface->w;
+    master_key_texture->h = master_key_prompt_surface->h;
+    master_key_texture->t = SDL_CreateTextureFromSurface(renderer, master_key_prompt_surface);
+    if (master_key_texture->t == NULL) {
+        fprintf(stderr, "failed to create text texture: %s\n", SDL_GetError());
+        return NULL;
+    }
+    SDL_FreeSurface(master_key_prompt_surface);
+
+    SDL_GetWindowSize(window, &window_w, &window_h);
+    master_key_rect = &(SDL_Rect){(window_w-master_key_texture->w)/2, (window_h-master_key_texture->h)/2, master_key_texture->w, master_key_texture->h};
+    
+    SDL_SetRenderDrawColor(renderer, WHITE.r, WHITE.g, WHITE.b, WHITE.a);
+    SDL_RenderCopy(renderer, master_key_texture->t, NULL, master_key_rect);
+    SDL_RenderPresent(renderer);
+
+    float elapsed = 0;
+    bool asking_for_master_key = true;
+    Uint32 start = SDL_GetTicks64();
+    Uint32 end = SDL_GetTicks64();    
+    SDL_StartTextInput();
+
+    while (asking_for_master_key) {
+        start = SDL_GetTicks64();
+        SDL_Event sdl_event = {0};
+        while (SDL_PollEvent(&sdl_event) > 0) {
+            // QUIT START
+            if (sdl_event.type == SDL_QUIT || 
+                (sdl_event.type == SDL_WINDOWEVENT && sdl_event.window.event == SDL_WINDOWEVENT_CLOSE) || 
+                    (sdl_event.type == SDL_KEYDOWN &&
+                        sdl_event.key.state == SDL_PRESSED &&
+                        sdl_event.key.keysym.sym == SDLK_c &&
+                        sdl_event.key.keysym.mod & KMOD_CTRL) || 
+                        (sdl_event.type == SDL_KEYDOWN &&
+                            sdl_event.key.state == SDL_PRESSED &&
+                            sdl_event.key.keysym.sym == SDLK_d &&
+                            sdl_event.key.keysym.mod & KMOD_CTRL)) {
+                asking_for_master_key = false;
+                master_key = NULL; // NOTE: NULL for early return
+                break;
+            return NULL;
+            // QUIT END
+
+            // BACKSPACE START
+            } else if (sdl_event.type == SDL_KEYDOWN &&
+                    sdl_event.key.state == SDL_PRESSED &&
+                    sdl_event.key.keysym.sym == SDLK_BACKSPACE) {
+                master_key[input_offset] = '\0';
+                if (input_offset > 0){
+                    input_offset -= 1;
+                }
+            // BACKSPACE END
+
+            // ENTER START
+            } else if (sdl_event.type == SDL_KEYDOWN &&
+                    sdl_event.key.state == SDL_PRESSED &&
+                    sdl_event.key.keysym.sym == SDLK_RETURN) {
+                asking_for_master_key = false;
+                break;
+            // ENTER END
+
+            // TEXT START
+            } else if (sdl_event.type == SDL_TEXTINPUT) {
+                size_t event_text_len = strlen(sdl_event.text.text);
+                if (input_offset+event_text_len <= master_key_max_len) {
+                    memcpy(master_key+input_offset, sdl_event.text.text, event_text_len);
+                    input_offset += event_text_len;
+                }
+            }
+            // TEXT END
+
+        }
+
+        SDL_RenderClear(renderer);
+        SDL_GetWindowSize(window, &window_w, &window_h);
+        if (prev_window_w != window_w || prev_window_h != window_h) {
+            master_key_rect = &(SDL_Rect){(window_w-master_key_texture->w)/2, (window_h-master_key_texture->h)/2, master_key_texture->w, master_key_texture->h};
+        }
+        if (prev_input_offset == 0 && 
+            0 < input_offset && input_offset < master_key_max_len) { // from 0
+                SDL_SetRenderDrawColor(renderer, BLUE.r, BLUE.g, BLUE.b, BLUE.a);
+        } else if (0 < prev_input_offset && prev_input_offset < master_key_max_len && 
+            input_offset == 0) { // to 0
+                SDL_SetRenderDrawColor(renderer, WHITE.r, WHITE.g, WHITE.b, WHITE.a);
+        } else if (0 < prev_input_offset && prev_input_offset < master_key_max_len &&
+            input_offset == master_key_max_len) { // to max
+                SDL_SetRenderDrawColor(renderer, RED.r, RED.g, RED.b, RED.a);
+        } else if (prev_input_offset == master_key_max_len && 
+            0 < input_offset && input_offset < master_key_max_len) { // from max
+                SDL_SetRenderDrawColor(renderer, BLUE.r, BLUE.g, BLUE.b, BLUE.a);
+        }
+        SDL_RenderCopy(renderer, master_key_texture->t, NULL, master_key_rect);
+        SDL_RenderPresent(renderer);
+
+        prev_window_w = window_w;
+        prev_window_h = window_h;
+        prev_input_offset = input_offset;
+
+        end = SDL_GetTicks64();
+        elapsed = end - start;
+        if (elapsed <= FRAME_DELAY) {
+            SDL_Delay(FRAME_DELAY - elapsed);
+        }
+    }
+
+    SDL_StopTextInput();
+    SDL_DestroyTexture(master_key_texture->t);
+    return master_key;
+}
+
+// TODO: GUI for selecting domain
+PwData *gui(char ***vault_contents, int line_count) {
+
+    // Texture **textures = mmalloc(sizeof(Texture *)*line_count);
+    // SDL_Rect **texture_rects = mmalloc(sizeof(SDL_Rect *)*line_count);
+    // int textures_count = 0;
+    // for (int i=0; i<line_count; i++) {
+    //     textures[i] = mmalloc(sizeof(Texture)*1);
+    //     texture_rects[i] = mmalloc(sizeof(SDL_Rect)*1);
+    // }
 
     ///////////////////////////
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -237,12 +375,9 @@ PwData *gui(char ***vault_contents, int line_count) {
         return NULL;
     }
 
-
-    int window_w = WINDOW_WIDTH;
-    int window_h = WINDOW_HEIGHT;
     SDL_Window *window = SDL_CreateWindow("vault", SDL_WINDOWPOS_UNDEFINED,
-                                        SDL_WINDOWPOS_UNDEFINED, window_w,
-                                        window_h, SDL_WINDOW_RESIZABLE);
+                                        SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH,
+                                        WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE);
 
     if (window == NULL) {
         fprintf(stderr, "failed to create window: '%s'\n", SDL_GetError());
@@ -258,8 +393,6 @@ PwData *gui(char ***vault_contents, int line_count) {
         return NULL;
     }
 
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 1);
-
     TTF_Font *font = TTF_OpenFont(GUI_FONT, FONT_SIZE);
     if (font == NULL) {
         fprintf(stderr, "failed to load font: %s\n", TTF_GetError());
@@ -270,81 +403,31 @@ PwData *gui(char ***vault_contents, int line_count) {
     }
 
     SDL_RenderClear(renderer);
-    
-    // MasterKeyPrompt texture
-    SDL_Surface *master_key_prompt_surface = TTF_RenderUTF8_Solid(font, master_key_prompt, rgb_to_sdl_color(0x00000));
-    if (master_key_prompt_surface == NULL) {
-        fprintf(stderr, "failed to create text surface: %s\n", TTF_GetError());
-        return NULL;
+
+    char *master_key = ask_master_password(window, renderer, font);
+    SDL_SetRenderDrawColor(renderer, WHITE.r, WHITE.g, WHITE.b, WHITE.a);
+    int idx = 0;// TODO: select domain
+    if (master_key != NULL) {
+        // TODO: find idx
     }
 
-    textures[0]->w = master_key_prompt_surface->w;
-    textures[0]->h = master_key_prompt_surface->h;
-    textures[0]->t = SDL_CreateTextureFromSurface(renderer, master_key_prompt_surface);
-    if (textures[0]->t == NULL) {
-        fprintf(stderr, "failed to create text texture: %s\n", SDL_GetError());
-        return NULL;
-    }
-    SDL_FreeSurface(master_key_prompt_surface);
-    textures_count = 1;
+    SDL_HideWindow(window);
+    // NOTE: hopefully sdl hide event is handled in 100ms, otherwise the window hangs until sleep is over
+    // we're going to accept this behavior for now
+    for (int i = 0; i < 10; ++i) {
+        SDL_Delay(10);
+        SDL_PumpEvents();
+    } 
 
-    SDL_GetWindowSize(window, &window_w, &window_h);
-    texture_rects[0] = &(SDL_Rect){(window_w-textures[0]->w)/2, (window_h-textures[0]->h)/2, textures[0]->w, textures[0]->h};
-    /////
-    
-    SDL_RenderCopy(renderer, textures[0]->t, NULL, texture_rects[0]);
-    SDL_RenderPresent(renderer);
-
-    float elapsed = 0;
-    bool keep_window_open = true;
-    Uint32 start = SDL_GetTicks64();
-    Uint32 end = SDL_GetTicks64();
-    while (keep_window_open) {
-        start = SDL_GetTicks64();
-        SDL_Event sdl_event = {0};
-        while (SDL_PollEvent(&sdl_event) > 0) {
-            // QUIT START
-            if (sdl_event.type == SDL_QUIT ||
-                    (sdl_event.type == SDL_KEYDOWN &&
-                        sdl_event.key.state == SDL_PRESSED &&
-                        sdl_event.key.keysym.sym == SDLK_c &&
-                        sdl_event.key.keysym.mod & KMOD_CTRL) || 
-                        (sdl_event.type == SDL_KEYDOWN &&
-                            sdl_event.key.state == SDL_PRESSED &&
-                            sdl_event.key.keysym.sym == SDLK_d &&
-                            sdl_event.key.keysym.mod & KMOD_CTRL)) {
-                keep_window_open = false;
-            return NULL;
-            // QUIT END
-            }
-        }
-
-        SDL_RenderClear(renderer);
-        SDL_GetWindowSize(window, &window_w, &window_h);
-        for (int i=0; i<textures_count; i++){
-            texture_rects[i] = &(SDL_Rect){(window_w-textures[0]->w)/2, (window_h-textures[0]->h)/2, textures[0]->w, textures[0]->h};
-            SDL_RenderCopy(renderer, textures[i]->t, NULL, texture_rects[i]);
-        }
-        SDL_RenderPresent(renderer);
-
-        end = SDL_GetTicks64();
-        elapsed = end - start;
-        if (elapsed <= FRAME_DELAY) {
-            SDL_Delay(FRAME_DELAY - elapsed);
-        }
-    }
-
-    for (int i=0; i<textures_count; i++) {
-        SDL_DestroyTexture(textures[i]->t);
-    }
     TTF_CloseFont(font);
-    SDL_DestroyWindow(window);
     SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
     SDL_Quit();
     ///////////////////////////
 
-
-    int idx = 0;// TODO: select domain
+    if (master_key == NULL) {
+        return NULL;
+    }
 
     PwData *pw_data = mmalloc(sizeof(PwData)*1);
     
@@ -489,7 +572,6 @@ void write_to_clipboard(const char *text) {
 void sleep_for(int amount) {
     Sleep(1000*amount);
 }
-
 #endif
 
 int main(int argc, char **argv) {
@@ -523,7 +605,7 @@ int main(int argc, char **argv) {
 
     int line_count = 0;
     char ***vault_contents = read_vault_contents(arg_filename, &line_count);
-    vault_contents_printer(vault_contents, line_count);
+    // vault_contents_printer(vault_contents, line_count); // REMOVEME:
     if (line_count == 0) {
         mfree();
         fprintf(stdout, "vault is empty\n");
@@ -536,16 +618,17 @@ int main(int argc, char **argv) {
     }
 
     char *password = pw(pw_data->master_key, pw_data->salt, pw_data->pepper, pw_data->domain, pw_data->digest_len);
-    printf("%s\n", password);
+    printf("%s\n", password); // REMOVEME:
 
-    char *prev = read_from_clipboard();
+    char *prev_clipboard = read_from_clipboard();
     write_to_clipboard((const char *)password);
 
     sleep_for(arg_sleep); // TODO: add note to README that recommended to run this program in background because of this line
 
-    char *cur = read_from_clipboard();
-    if (strcmp(cur, password) == 0) {
-        write_to_clipboard(prev);
+    char *cur_clipboard = read_from_clipboard();
+    if (strcmp(cur_clipboard, password) == 0) {
+        write_to_clipboard(prev_clipboard);
     }
+
     mfree();
 }
