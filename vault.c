@@ -438,9 +438,11 @@ PwData *gui(char ***vault_contents, int line_count) {
     pw_data->domain = vault_contents[idx][2];
     pw_data->digest_len = 16;
     if (vault_contents[idx][3] != NULL) {
-        int tmp_digest_len = atoi(vault_contents[0][3]);
+        int tmp_digest_len = atoi(vault_contents[idx][3]);
         if (0 < tmp_digest_len && tmp_digest_len <= 16) {
             pw_data->digest_len = tmp_digest_len;
+        } else {
+            fprintf(stderr, "[WARNING]: invalid digest length for %s: expected value between (0, 16], but got '%s'\n", pw_data->domain, vault_contents[idx][3]);
         }
     }
 
