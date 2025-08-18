@@ -406,7 +406,7 @@ PwData *gui(char ***vault_contents, int line_count) {
 
     char *master_key = ask_master_password(window, renderer, font);
     SDL_SetRenderDrawColor(renderer, WHITE.r, WHITE.g, WHITE.b, WHITE.a);
-    int idx = 0;// TODO: select domain
+    int idx = -1;
     if (master_key != NULL) {
         // TODO: find idx
     }
@@ -425,7 +425,7 @@ PwData *gui(char ***vault_contents, int line_count) {
     SDL_Quit();
     ///////////////////////////
 
-    if (master_key == NULL) {
+    if (master_key == NULL || idx < 0) { // NOTE: cancelled the pw - early exit
         return NULL;
     }
 
@@ -521,17 +521,17 @@ char *read_from_clipboard() {
     char *buf = mmalloc(sizeof(char)*(buf_size+1));
 
     if (OpenClipboard(NULL) == 0) {
-        goto fastexit;
+        goto fastexit_win_read_clipboard;
     }
     HANDLE hData = GetClipboardData(CF_TEXT);
     if (hData == NULL) {
-        goto exit;
+        goto exit_win_read_clipboard;
     }
 
     char *clipboard = (char *)GlobalLock(hData);
     if (clipboard == NULL) {
         CloseClipboard();
-        goto exit;
+        goto exit_win_read_clipboard;
     }
     size_t clipboard_len = strlen(clipboard);
     size_t size = clipboard_len;
@@ -541,9 +541,9 @@ char *read_from_clipboard() {
     memcpy(buf, clipboard, size);
 
     GlobalUnlock(hData);
-exit:
+exit_win_read_clipboard:
     CloseClipboard();
-fastexit:
+fastexit_win_read_clipboard:
     return buf;
 }
 
@@ -579,6 +579,7 @@ void sleep_for(int amount) {
 int main(int argc, char **argv) {
     char *arg_filename = NULL;
     int arg_sleep = SLEEP_FOR;
+    int exit_code = 0;
 
     for (int i=0; i<argc; ++i) {
         if ((strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--filename") == 0) && i+1 < argc) {
@@ -602,21 +603,21 @@ int main(int argc, char **argv) {
     
     if (arg_filename == NULL) {
         fprintf(stderr, "invalid argument: filename missing\n");
-        return 1;
+        exit_code = 1;
+        goto exit_main;
     }
 
     int line_count = 0;
     char ***vault_contents = read_vault_contents(arg_filename, &line_count);
     // vault_contents_printer(vault_contents, line_count); // REMOVEME:
     if (line_count == 0) {
-        mfree();
         fprintf(stdout, "vault is empty\n");
-        return 0;
+        goto exit_main;
     }
 
     PwData *pw_data = gui(vault_contents, line_count);
-    if (pw_data == NULL) { // NULL doesn't mean an error, maybe we cancelled the selection
-        return 0;
+    if (pw_data == NULL) { // NOTE: pw calc cancelled
+        goto exit_main;
     }
 
     char *password = pw(pw_data->master_key, pw_data->salt, pw_data->pepper, pw_data->domain, pw_data->digest_len);
@@ -632,5 +633,7 @@ int main(int argc, char **argv) {
         write_to_clipboard(prev_clipboard);
     }
 
+exit_main:
     mfree();
+    return exit_code;
 }
