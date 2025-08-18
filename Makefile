@@ -13,14 +13,14 @@ build: dirs
 INCLUDES += 
 DEFINES += -D_REENTRANT
 LDFLAGS += -lpthread
-# SDLFLAGS = `pkg-config --cflags --libs sdl2 SDL2_ttf`
+SDLFLAGS = `pkg-config --cflags --libs sdl2 SDL2_ttf`
 endif
 ifeq ($(UNAME_S),Darwin)
 # CCFLAGS += -arch arm64
 INCLUDES += -I/opt/homebrew/include
 DEFINES += -DOSX -D_THREAD_SAFE
-LDFLAGS += -lpthread -L/opt/homebrew/lib -lSDL2 -lSDL2_ttf
-# SDLFLAGS = `sdl2-config --libs --cflags` -lSDL2_ttf
+LDFLAGS += -lpthread # -L/opt/homebrew/lib -lSDL2 -lSDL2_ttf
+SDLFLAGS = `sdl2-config --libs --cflags` -lSDL2_ttf
 endif
 
 dirs:
