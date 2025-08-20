@@ -27,7 +27,12 @@
 
 #define WINDOW_WIDTH 960
 #define WINDOW_HEIGHT 540
-#define FONT_SIZE 20
+
+#define BASE_FONT_SIZE 18
+#define MASTER_KEY_FONT_SIZE 20
+#define VAULT_CONTENTS_FONT_SIZE 12
+#define INPUT_FONT_SIZE 18
+
 #define FRAME_DELAY 16 // in milliseconds; ~60FPS
 #define SCROLLBAR_PADDING 20
 
@@ -51,17 +56,12 @@
       rgba >> (8 * 0) & 0xFF,                                                  \
   })
 
-
+#define BLACK rgb_to_sdl_color(0x000000)
 #define WHITE rgb_to_sdl_color(0xF0EEE9)
 #define RED rgb_to_sdl_color(0xdc322f)
 #define BLUE rgb_to_sdl_color(0x268bd2)
-#define GREY rgb_to_sdl_color(0x555555)
-
 
 // MAYBE: TODO: use calloc instead of malloc
-// NOTE: while deving
-// clear && clang -g -fsanitize=address vault.c && ./a.out -f ./tests/inputs.txt
-// clang pw.c -o verify && ./verify -k test -s salt -p pepper domain
 
 typedef struct Alloc {
     void *ptr;
@@ -216,14 +216,13 @@ typedef struct {
 } PwData;
 
 typedef struct {
-    int x;
-    int y;
-    int w;
-    int h;
+    SDL_Rect *rect;
     SDL_Texture *t;
 } Texture;
 
-char *ask_master_password(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font) {
+char *ask_master_key(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font) {
+    TTF_SetFontSize(font, MASTER_KEY_FONT_SIZE);
+
     int master_key_max_len = ALLOWED_MASTER_KEY_LEN;
     int input_offset = 0;
     int prev_input_offset = 0;
@@ -233,23 +232,23 @@ char *ask_master_password(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *
     char *master_key_prompt = "Provide Master Key";
 
     Texture *master_key_texture = mmalloc(sizeof(Texture)*1);
-    SDL_Rect *master_key_rect = mmalloc(sizeof(SDL_Rect)*1);
+    master_key_texture->rect = mmalloc(sizeof(SDL_Rect)*1);
 
     int window_w;
     int window_h;
     SDL_GetWindowSize(window, &window_w, &window_h);
-    int prev_window_w = window_w;
-    int prev_window_h = window_h;
     
     // MasterKeyPrompt texture
-    SDL_Surface *master_key_prompt_surface = TTF_RenderUTF8_Solid(font, master_key_prompt, rgb_to_sdl_color(0x00000));
+    SDL_Surface *master_key_prompt_surface = TTF_RenderUTF8_Solid(font, master_key_prompt, BLACK);
     if (master_key_prompt_surface == NULL) {
         fprintf(stderr, "failed to create text surface: %s\n", TTF_GetError());
         return NULL;
     }
 
-    master_key_texture->w = master_key_prompt_surface->w;
-    master_key_texture->h = master_key_prompt_surface->h;
+    master_key_texture->rect->x = (window_w-master_key_prompt_surface->w)/2;
+    master_key_texture->rect->y = (window_h-master_key_prompt_surface->h)/2;
+    master_key_texture->rect->w = master_key_prompt_surface->w;
+    master_key_texture->rect->h = master_key_prompt_surface->h;
     master_key_texture->t = SDL_CreateTextureFromSurface(renderer, master_key_prompt_surface);
     if (master_key_texture->t == NULL) {
         SDL_FreeSurface(master_key_prompt_surface);
@@ -258,11 +257,9 @@ char *ask_master_password(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *
     }
     SDL_FreeSurface(master_key_prompt_surface);
 
-    SDL_GetWindowSize(window, &window_w, &window_h);
-    master_key_rect = &(SDL_Rect){(window_w-master_key_texture->w)/2, (window_h-master_key_texture->h)/2, master_key_texture->w, master_key_texture->h};
-    
+    SDL_GetWindowSize(window, &window_w, &window_h);    
     SDL_SetRenderDrawColor(renderer, WHITE.r, WHITE.g, WHITE.b, WHITE.a);
-    SDL_RenderCopy(renderer, master_key_texture->t, NULL, master_key_rect);
+    SDL_RenderCopy(renderer, master_key_texture->t, NULL, master_key_texture->rect);
     SDL_RenderPresent(renderer);
 
     float elapsed = 0;
@@ -317,13 +314,17 @@ char *ask_master_password(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *
                     input_offset += event_text_len;
                 }
             // TEXT END
+
+            // WINDOW RESIZE START
+            } else if (sdl_event.type == SDL_WINDOWEVENT && sdl_event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                SDL_GetWindowSize(window, &window_w, &window_h);
+                master_key_texture->rect->x = (window_w-master_key_texture->rect->w)/2;
+                master_key_texture->rect->y = (window_h-master_key_texture->rect->h)/2;
+            // WINDOW RESIZE END
             }
         }
 
         SDL_GetWindowSize(window, &window_w, &window_h);
-        if (prev_window_w != window_w || prev_window_h != window_h) {
-            master_key_rect = &(SDL_Rect){(window_w-master_key_texture->w)/2, (window_h-master_key_texture->h)/2, master_key_texture->w, master_key_texture->h};
-        }
         if (prev_input_offset == 0 && 
             0 < input_offset && input_offset < master_key_max_len) { // from 0
                 SDL_SetRenderDrawColor(renderer, BLUE.r, BLUE.g, BLUE.b, BLUE.a);
@@ -338,11 +339,9 @@ char *ask_master_password(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *
                 SDL_SetRenderDrawColor(renderer, BLUE.r, BLUE.g, BLUE.b, BLUE.a);
         }
         SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, master_key_texture->t, NULL, master_key_rect);
+        SDL_RenderCopy(renderer, master_key_texture->t, NULL, master_key_texture->rect);
         SDL_RenderPresent(renderer);
 
-        prev_window_w = window_w;
-        prev_window_h = window_h;
         prev_input_offset = input_offset;
 
         end = SDL_GetTicks64();
@@ -357,15 +356,93 @@ char *ask_master_password(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *
     return master_key;
 }
 
+Texture *create_input_texture(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font, char *input_buf) {
+    TTF_SetFontSize(font, INPUT_FONT_SIZE);
+
+    int window_w;
+    int window_h;
+    SDL_GetWindowSize(window, &window_w, &window_h);
+
+    Texture *input_texture = mmalloc(sizeof(Texture)*1);
+    input_texture->rect = mmalloc(sizeof(SDL_Rect)*1);
+
+    SDL_Surface *input_prompt_surface = TTF_RenderUTF8_Solid(font, input_buf, BLACK);
+    if (input_prompt_surface == NULL) {
+        fprintf(stderr, "[WARNING]: failed to create input text surface: %s\n", TTF_GetError());
+        return NULL;
+    }
+
+    input_texture->rect->x = 0;
+    input_texture->rect->y = window_h-INPUT_FONT_SIZE;
+    input_texture->rect->w = input_prompt_surface->h;
+    input_texture->rect->h = input_prompt_surface->h;
+    input_texture->t = SDL_CreateTextureFromSurface(renderer, input_prompt_surface);
+    if (input_texture->t == NULL) {
+        SDL_FreeSurface(input_prompt_surface);
+        fprintf(stderr, "[WARNING]: failed to create input text texture: %s\n", SDL_GetError());
+        return NULL;
+    }
+    SDL_FreeSurface(input_prompt_surface);
+    return input_texture;
+}
+
+
+Texture **create_vault_contents_textures(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font, char ***vault_contents, int line_count) {
+    TTF_SetFontSize(font, VAULT_CONTENTS_FONT_SIZE);
+
+    int window_w;
+    int window_h;
+    SDL_GetWindowSize(window, &window_w, &window_h);
+    int h_offset = 0;
+
+    Texture **textures = mmalloc(sizeof(Texture *)*line_count);
+    for (int i=0; i<line_count; i++) {
+        if (vault_contents[i][2] == NULL) {
+            textures[i] = NULL;
+        } else {
+            textures[i] = mmalloc(sizeof(Texture)*1);
+            textures[i]->rect = mmalloc(sizeof(SDL_Rect)*1);
+        }
+    }
+    
+    for (int i=0; i<line_count; i++) {
+        if (vault_contents[i] == NULL || vault_contents[i][2] == NULL) {
+            continue;
+        }
+
+        SDL_Surface *surface = TTF_RenderUTF8_Solid(font, vault_contents[i][2], BLACK);
+        if (surface == NULL) {
+            fprintf(stderr, "[WARNING]: failed to create text surface: %s; skipping %s\n", TTF_GetError(), vault_contents[i][2]);
+            continue;
+        }
+
+        textures[i]->rect->x = SCROLLBAR_PADDING;
+        textures[i]->rect->y = h_offset;
+        textures[i]->rect->w = surface->w;
+        textures[i]->rect->h = surface->h;
+        h_offset += surface->h;
+
+        textures[i]->t = SDL_CreateTextureFromSurface(renderer, surface);
+        if (textures[i]->t == NULL) {
+            SDL_FreeSurface(surface);
+            fprintf(stderr, "[WARNING]: failed to create text texture: %s; skipping %s\n", SDL_GetError(), vault_contents[i][2]);
+            continue;
+        }
+        SDL_FreeSurface(surface);
+    }
+
+    return textures;
+}
+
 int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font, char ***vault_contents, int line_count) {
-    TTF_SetFontSize(font, FONT_SIZE*0.75);
+
     // TODO: scrollbar
     // TODO: text input
     int result_idx = -1;
 
+    int window_w;
     int window_h;
-    SDL_GetWindowSize(window, NULL, &window_h);
-    int h_offset = 0;
+    SDL_GetWindowSize(window, &window_w, &window_h);
     int vertical_scroll = 0; // TODO:
 
     SDL_Color prev_renderer_color = {0};
@@ -375,99 +452,17 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
     int input_offset = 0;
     char *input_buf = mmalloc(sizeof(char)*(input_allowed_len+1));
 
-    char *input_prompt = "> ";
+    char *input_prompt = "\t>";
     size_t input_prompt_len = strlen(input_prompt);
     memcpy(input_buf+input_offset, input_prompt, input_prompt_len);
     input_offset += input_prompt_len;
 
-    ////////
-    Texture *input_texture = mmalloc(sizeof(Texture)*1);
-    SDL_Rect *input_texture_rect = mmalloc(sizeof(SDL_Rect)*1);
-
-    SDL_Surface *input_prompt_surface = TTF_RenderUTF8_Solid(font, input_buf, rgb_to_sdl_color(0x00000));
-    if (input_prompt_surface == NULL) {
-        fprintf(stderr, "[WARNING]: failed to create input text surface: %s\n", TTF_GetError());
+    Texture *input_texture = create_input_texture(window, renderer, font, input_buf);
+    if (input_texture == NULL) {
         return result_idx;
     }
 
-    input_texture->x = SCROLLBAR_PADDING;
-    input_texture->y = window_h-FONT_SIZE;
-    input_texture->w = input_prompt_surface->w;
-    input_texture->h = input_prompt_surface->h;
-
-    input_texture->t = SDL_CreateTextureFromSurface(renderer, input_prompt_surface);
-    if (input_texture->t == NULL) {
-        SDL_FreeSurface(input_prompt_surface);
-        fprintf(stderr, "[WARNING]: failed to create input text texture: %s\n", SDL_GetError());
-        return result_idx;
-    }
-    SDL_FreeSurface(input_prompt_surface);
-
-    input_texture_rect->x = input_texture->x;
-    input_texture_rect->y = input_texture->y;
-    input_texture_rect->w = input_texture->w;
-    input_texture_rect->h = input_texture->h;
-    //////
-
-    Texture **textures = mmalloc(sizeof(Texture *)*line_count);
-    SDL_Rect **texture_rects = mmalloc(sizeof(SDL_Rect *)*line_count);
-    for (int i=0; i<line_count; i++) {
-        if (vault_contents[i][2] == NULL) {
-            textures[i] = NULL;
-            texture_rects[i] = NULL;
-        } else {
-            textures[i] = mmalloc(sizeof(Texture)*1);
-            texture_rects[i] = mmalloc(sizeof(SDL_Rect)*1);
-        }
-    }
-    
-    for (int i=0; i<line_count; i++) {
-        if (vault_contents[i] == NULL || vault_contents[i][2] == NULL) {
-            continue;
-        }
-
-        SDL_Surface *surface = TTF_RenderUTF8_Solid(font, vault_contents[i][2], rgb_to_sdl_color(0x00000));
-        if (surface == NULL) {
-            fprintf(stderr, "[WARNING]: failed to create text surface: %s; skipping %s\n", TTF_GetError(), vault_contents[i][2]);
-            continue;
-        }
-
-        textures[i]->x = SCROLLBAR_PADDING;
-        textures[i]->y = h_offset;
-        textures[i]->w = surface->w;
-        textures[i]->h = surface->h;
-
-        textures[i]->t = SDL_CreateTextureFromSurface(renderer, surface);
-        if (textures[i]->t == NULL) {
-            SDL_FreeSurface(surface);
-            fprintf(stderr, "[WARNING]: failed to create text texture: %s; skipping %s\n", SDL_GetError(), vault_contents[i][2]);
-            continue;
-        }
-        SDL_FreeSurface(surface);
-
-        texture_rects[i]->x = textures[i]->x;
-        texture_rects[i]->y = textures[i]->y;
-        texture_rects[i]->w = textures[i]->w;
-        texture_rects[i]->h = textures[i]->h;
-        h_offset += textures[i]->h;
-    }
-
-
-    SDL_RenderClear(renderer);
-    for (int i=0; i<line_count; i++) {
-        if (textures[i] == NULL) {
-            continue;
-        }
-        if (textures[i]->y+FONT_SIZE < window_h) {
-            SDL_RenderCopy(renderer, textures[i]->t, NULL, texture_rects[i]);
-        }
-    }
-    
-    SDL_SetRenderDrawColor(renderer, GREY.r, GREY.g, GREY.b, GREY.a);
-    SDL_RenderCopy(renderer, input_texture->t, NULL, input_texture_rect);
-    SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a);
-
-    SDL_RenderPresent(renderer);
+    Texture **vault_contents_textures = create_vault_contents_textures(window, renderer, font, vault_contents, line_count);
 
     float elapsed = 0;
     bool select_vault_content = true;
@@ -521,28 +516,48 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
             //         input_offset += event_text_len;
             //     }
             // // TEXT END
+            
+            // WINDOW RESIZE START
+            } else if(sdl_event.type == SDL_WINDOWEVENT && sdl_event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                SDL_GetWindowSize(window, &window_w, &window_h);
+                input_texture->rect->y = window_h-INPUT_FONT_SIZE;
+            // WINDOW RESIZE END
             }
         }
 
         SDL_RenderClear(renderer);
-        SDL_GetWindowSize(window, NULL, &window_h);
-        // TODO: fuzzy finding - firstly naive O(n) solution    
+        // TODO: fuzzy finding - firstly naive O(n) solution
+        // TODO: handle highlight
         for (int i=0; i<line_count; i++) {
-            if (textures[i] == NULL) {
+            if (vault_contents_textures[i] == NULL) {
                 continue;
             }
-            if (textures[i]->y+FONT_SIZE + FONT_SIZE < window_h) { // NOTE: second FONT_SIZE for input
-                // SDL_SetRenderDrawColor(renderer, WHITE.r, WHITE.g, WHITE.b, WHITE.a); // TODO: handle highlight
-                texture_rects[i]->y = textures[i]->y;
-                SDL_RenderCopy(renderer, textures[i]->t, NULL, texture_rects[i]);
+            if (vault_contents_textures[i]->rect->y+VAULT_CONTENTS_FONT_SIZE + INPUT_FONT_SIZE < window_h) {
+                if (i == 0) {// NOTE: just highlight the first row for now
+                    SDL_SetRenderDrawColor(renderer, BLUE.r, BLUE.g, BLUE.b, BLUE.a);
+                    SDL_RenderFillRect(renderer, &(SDL_Rect){
+                        .x=vault_contents_textures[i]->rect->x, 
+                        .y=vault_contents_textures[i]->rect->y,
+                        .w=window_w, 
+                        .h=INPUT_FONT_SIZE
+                    });
+
+                    SDL_RenderCopy(renderer, vault_contents_textures[i]->t, NULL, vault_contents_textures[i]->rect);
+                    SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a);    
+                } else {
+                    SDL_RenderCopy(renderer, vault_contents_textures[i]->t, NULL, vault_contents_textures[i]->rect);
+
+                }
             }
         }
 
-        input_texture->y = window_h-FONT_SIZE;
-        SDL_SetRenderDrawColor(renderer, GREY.r, GREY.g, GREY.b, GREY.a);
-        SDL_RenderCopy(renderer, input_texture->t, NULL, input_texture_rect);
-        SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a);
-
+        {
+            SDL_SetRenderDrawColor(renderer, BLACK.r, BLACK.g, BLACK.b, BLACK.a);
+            SDL_RenderFillRect(renderer, &(SDL_Rect){.x=0, .y=window_h - INPUT_FONT_SIZE,.w=window_w, .h=1});
+            SDL_RenderCopy(renderer, input_texture->t, NULL, input_texture->rect);
+            SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a);
+        }
+        
         SDL_RenderPresent(renderer);
 
         end = SDL_GetTicks64();
@@ -558,9 +573,10 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
         if (vault_contents[i][2] == NULL) {
             continue;
         } else {
-            SDL_DestroyTexture(textures[i]->t);
+            SDL_DestroyTexture(vault_contents_textures[i]->t);
         }
     }
+    SDL_DestroyTexture(input_texture->t);
     return result_idx;
 }
 
@@ -597,7 +613,7 @@ PwData *gui(char ***vault_contents, int line_count) {
         return NULL;
     }
 
-    TTF_Font *font = TTF_OpenFont(GUI_FONT, FONT_SIZE);
+    TTF_Font *font = TTF_OpenFont(GUI_FONT, BASE_FONT_SIZE);
     if (font == NULL) {
         fprintf(stderr, "failed to load font: %s\n", TTF_GetError());
         SDL_DestroyRenderer(renderer);
@@ -608,12 +624,13 @@ PwData *gui(char ***vault_contents, int line_count) {
 
     SDL_RenderClear(renderer);
 
-    char *master_key = ask_master_password(window, renderer, font);
-    SDL_SetRenderDrawColor(renderer, WHITE.r, WHITE.g, WHITE.b, WHITE.a);
+    char *master_key = ask_master_key(window, renderer, font);
 
     int window_w;
     int window_h;
     SDL_GetWindowSize(window, &window_w, &window_h);
+
+    SDL_SetRenderDrawColor(renderer, WHITE.r, WHITE.g, WHITE.b, WHITE.a);
     SDL_RenderFillRect(renderer, &(SDL_Rect){0, 0, window_w, window_h});
 
     int idx = -1;
