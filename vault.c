@@ -22,6 +22,7 @@
 #include "version.h"
 
 #define ALLOWED_MASTER_KEY_LEN 1024
+#define ALLOWED_INPUT_LEN 1024
 #define SLEEP_FOR 10 // in seconds
 
 #define WINDOW_WIDTH 960
@@ -54,6 +55,8 @@
 #define WHITE rgb_to_sdl_color(0xF0EEE9)
 #define RED rgb_to_sdl_color(0xdc322f)
 #define BLUE rgb_to_sdl_color(0x268bd2)
+#define GREY rgb_to_sdl_color(0x555555)
+
 
 // MAYBE: TODO: use calloc instead of malloc
 // NOTE: while deving
@@ -249,6 +252,7 @@ char *ask_master_password(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *
     master_key_texture->h = master_key_prompt_surface->h;
     master_key_texture->t = SDL_CreateTextureFromSurface(renderer, master_key_prompt_surface);
     if (master_key_texture->t == NULL) {
+        SDL_FreeSurface(master_key_prompt_surface);
         fprintf(stderr, "failed to create text texture: %s\n", SDL_GetError());
         return NULL;
     }
@@ -359,6 +363,51 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
     // TODO: text input
     int result_idx = -1;
 
+    int window_h;
+    SDL_GetWindowSize(window, NULL, &window_h);
+    int h_offset = 0;
+    int vertical_scroll = 0; // TODO:
+
+    SDL_Color prev_renderer_color = {0};
+    SDL_GetRenderDrawColor(renderer, (Uint8 *)&prev_renderer_color.r, (Uint8 *)&prev_renderer_color.g, (Uint8 *)&prev_renderer_color.b, (Uint8 *)&prev_renderer_color.a);
+
+    int input_allowed_len = ALLOWED_INPUT_LEN+2;
+    int input_offset = 0;
+    char *input_buf = mmalloc(sizeof(char)*(input_allowed_len+1));
+
+    char *input_prompt = "> ";
+    size_t input_prompt_len = strlen(input_prompt);
+    memcpy(input_buf+input_offset, input_prompt, input_prompt_len);
+    input_offset += input_prompt_len;
+
+    ////////
+    Texture *input_texture = mmalloc(sizeof(Texture)*1);
+    SDL_Rect *input_texture_rect = mmalloc(sizeof(SDL_Rect)*1);
+
+    SDL_Surface *input_prompt_surface = TTF_RenderUTF8_Solid(font, input_buf, rgb_to_sdl_color(0x00000));
+    if (input_prompt_surface == NULL) {
+        fprintf(stderr, "[WARNING]: failed to create input text surface: %s\n", TTF_GetError());
+        return result_idx;
+    }
+
+    input_texture->x = SCROLLBAR_PADDING;
+    input_texture->y = window_h-FONT_SIZE;
+    input_texture->w = input_prompt_surface->w;
+    input_texture->h = input_prompt_surface->h;
+
+    input_texture->t = SDL_CreateTextureFromSurface(renderer, input_prompt_surface);
+    if (input_texture->t == NULL) {
+        SDL_FreeSurface(input_prompt_surface);
+        fprintf(stderr, "[WARNING]: failed to create input text texture: %s\n", SDL_GetError());
+        return result_idx;
+    }
+    SDL_FreeSurface(input_prompt_surface);
+
+    input_texture_rect->x = input_texture->x;
+    input_texture_rect->y = input_texture->y;
+    input_texture_rect->w = input_texture->w;
+    input_texture_rect->h = input_texture->h;
+    //////
 
     Texture **textures = mmalloc(sizeof(Texture *)*line_count);
     SDL_Rect **texture_rects = mmalloc(sizeof(SDL_Rect *)*line_count);
@@ -371,11 +420,6 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
             texture_rects[i] = mmalloc(sizeof(SDL_Rect)*1);
         }
     }
-
-    int window_h;
-    SDL_GetWindowSize(window, NULL, &window_h);
-    int h_offset = 0;
-    int vertical_scroll = 0; // TODO:
     
     for (int i=0; i<line_count; i++) {
         if (vault_contents[i] == NULL || vault_contents[i][2] == NULL) {
@@ -395,6 +439,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
 
         textures[i]->t = SDL_CreateTextureFromSurface(renderer, surface);
         if (textures[i]->t == NULL) {
+            SDL_FreeSurface(surface);
             fprintf(stderr, "[WARNING]: failed to create text texture: %s; skipping %s\n", SDL_GetError(), vault_contents[i][2]);
             continue;
         }
@@ -417,6 +462,11 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
             SDL_RenderCopy(renderer, textures[i]->t, NULL, texture_rects[i]);
         }
     }
+    
+    SDL_SetRenderDrawColor(renderer, GREY.r, GREY.g, GREY.b, GREY.a);
+    SDL_RenderCopy(renderer, input_texture->t, NULL, input_texture_rect);
+    SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a);
+
     SDL_RenderPresent(renderer);
 
     float elapsed = 0;
@@ -475,17 +525,23 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
         }
 
         SDL_RenderClear(renderer);
-        SDL_GetWindowSize(window, NULL, &window_h);     
+        SDL_GetWindowSize(window, NULL, &window_h);
+        // TODO: fuzzy finding - firstly naive O(n) solution    
         for (int i=0; i<line_count; i++) {
             if (textures[i] == NULL) {
                 continue;
             }
-            if (textures[i]->y+FONT_SIZE < window_h) {
+            if (textures[i]->y+FONT_SIZE + FONT_SIZE < window_h) { // NOTE: second FONT_SIZE for input
                 // SDL_SetRenderDrawColor(renderer, WHITE.r, WHITE.g, WHITE.b, WHITE.a); // TODO: handle highlight
+                texture_rects[i]->y = textures[i]->y;
                 SDL_RenderCopy(renderer, textures[i]->t, NULL, texture_rects[i]);
             }
-            // printf("HERE: %d %d %d\n", i, textures[i]->x, textures[i]->y);
         }
+
+        input_texture->y = window_h-FONT_SIZE;
+        SDL_SetRenderDrawColor(renderer, GREY.r, GREY.g, GREY.b, GREY.a);
+        SDL_RenderCopy(renderer, input_texture->t, NULL, input_texture_rect);
+        SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a);
 
         SDL_RenderPresent(renderer);
 
