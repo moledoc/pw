@@ -1,10 +1,10 @@
-salt_test pepper_test test@test.com
-salt_test pepper_test test@test.com 4
-  test@test.com
-  test@test.com 10
-salt_test  test@test.com
-salt_test  test@test.com 2
- pepper_test test@test.com
- pepper_test test@test.com 8
+salt_test pepper_test salt_pepper_domain@test.com
+salt_test pepper_test salt_pepper_domain_digestlen@test.com 4
+  domain@test.com
+  domain_digestlen@test.com 10
+salt_test  salt_domain@test.com
+salt_test  salt_domain_digestlen@test.com 2
+ pepper_test pepper_domain@test.com
+ pepper_test pepper_domain_digestlen@test.com 8
 i019efj ad_jnida example@example.com
-8uij2daf9ijudffad R@!@# example@example.com 16
+8uij2daf9ijudffad R@!@# example@example2.com 16
