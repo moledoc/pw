@@ -208,6 +208,9 @@ void help() {
 }
 
 bool fuzzy_match(const char *text, const char *pattern) {
+    if (*pattern == '\0') { // NOTE: empty pattern, match all
+        return true;
+    }
     while (*text != '\0' && *pattern != '\0') {
         if (*text == *pattern) {
             pattern++;
@@ -226,6 +229,7 @@ typedef struct {
 } PwData;
 
 typedef struct {
+    int idx;
     SDL_Rect *rect;
     SDL_Texture *t;
 } Texture;
@@ -409,6 +413,7 @@ Texture **create_vault_contents_textures(SDL_Window *window, SDL_Renderer *rende
         } else {
             textures[i] = mmalloc(sizeof(Texture)*1);
             textures[i]->rect = mmalloc(sizeof(SDL_Rect)*1);
+            textures[i]->idx = i;
         }
     }
     
@@ -444,9 +449,7 @@ Texture **create_vault_contents_textures(SDL_Window *window, SDL_Renderer *rende
 int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font, char ***vault_contents, int line_count) {
 
     // TODO: scrollbar
-    // TODO: text input
     // TODO: fuzzy-ish finding
-    int selected_idx = 0;
 
     int window_w;
     int window_h;
@@ -477,8 +480,17 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
 
     Texture **vault_contents_textures = create_vault_contents_textures(window, renderer, font, vault_contents, line_count);
 
+    Texture **print_these_textures = mmalloc(sizeof(Texture *)*line_count);
+    int print_textures_count = 0;
+
+    for (int i=0; i<line_count; i++) { // NOTE: print all in the beginning
+        print_these_textures[i] = vault_contents_textures[i];
+        print_textures_count += 1;
+    }
+
     float elapsed = 0;
     bool select_vault_content = true;
+    int selected_idx = 0;
     size_t event_text_len;
     Uint32 start = SDL_GetTicks64();
     Uint32 end = SDL_GetTicks64();    
@@ -510,10 +522,19 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                     sdl_event.key.keysym.sym == SDLK_BACKSPACE && 
                     input_offset > input_prompt_len) {
 
-                input_offset -= 1;
-                input_buf[input_offset] = '\0';
-                SDL_DestroyTexture(input_texture->t);
-                input_texture = create_input_texture(window, renderer, font, input_texture, input_buf);
+            input_offset -= 1;
+            input_buf[input_offset] = '\0';
+            SDL_DestroyTexture(input_texture->t);
+            input_texture = create_input_texture(window, renderer, font, input_texture, input_buf);
+                
+            memset(print_these_textures, 0, print_textures_count); // NOTE: just in case
+            print_textures_count = 0;
+            for (int i=0; i<line_count; i++) {
+                if (input_offset > input_prompt_len && fuzzy_match(vault_contents[i][2], input_buf+input_prompt_len)) {
+                    print_these_textures[print_textures_count] = vault_contents_textures[i];
+                    print_textures_count += 1;
+                }
+            }
             // BACKSPACE END
 
             // ENTER START
@@ -531,12 +552,21 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 SDL_DestroyTexture(input_texture->t);
                 input_texture = create_input_texture(window, renderer, font, input_texture, input_buf);
                 selected_idx = 0;
+ 
+                memset(print_these_textures, 0, print_textures_count); // NOTE: just in case
+                print_textures_count = 0;
+                for (int i=0; i<line_count; i++) {
+                    if (input_offset > input_prompt_len && fuzzy_match(vault_contents[i][2], input_buf+input_prompt_len)) {
+                        print_these_textures[print_textures_count] = vault_contents_textures[i];
+                        print_textures_count += 1;
+                    }
+                }
             // TEXT END
 
             // ARROW UP SELECT START
             } else if (sdl_event.type == SDL_KEYDOWN &&
                     sdl_event.key.state == SDL_PRESSED &&
-                    sdl_event.key.keysym.sym == SDLK_UP && selected_idx > 0) {
+                    sdl_event.key.keysym.sym == SDLK_UP && 0 < selected_idx && selected_idx < print_textures_count) {
 
                 selected_idx -= 1;
             // ARROW UP SELECT END
@@ -544,7 +574,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
             // ARROW DOWN SELECT START
             } else if (sdl_event.type == SDL_KEYDOWN &&
                     sdl_event.key.state == SDL_PRESSED &&
-                    sdl_event.key.keysym.sym == SDLK_DOWN && selected_idx < line_count-1) {
+                    sdl_event.key.keysym.sym == SDLK_DOWN && 0 <= selected_idx && selected_idx < print_textures_count-1) {
                 selected_idx += 1;
             // ARROW DOWN SELECT END
             
@@ -558,26 +588,21 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
 
         SDL_RenderClear(renderer);
         // TODO: fuzzy finding - firstly naive O(n) solution
-        for (int i=0; i<line_count; i++) {
-            if (vault_contents_textures[i] == NULL) {
-                continue;
+        for (int i=0; i<print_textures_count; i++) {
+            if (print_these_textures[i]->rect->y+VAULT_CONTENTS_FONT_SIZE + INPUT_FONT_SIZE >= window_h) {
+                break;
             }
-            if (input_offset > input_prompt_len && !fuzzy_match(vault_contents[i][2], input_buf+input_prompt_len)) {
-                continue;
+            if (i == selected_idx) {
+                SDL_SetRenderDrawColor(renderer, BLUE.r, BLUE.g, BLUE.b, BLUE.a);
+                SDL_RenderFillRect(renderer, &(SDL_Rect){
+                    .x=print_these_textures[i]->rect->x, 
+                    .y=print_these_textures[i]->rect->y,
+                    .w=window_w, 
+                    .h=INPUT_FONT_SIZE
+                });
+                SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a); 
             }
-            if (vault_contents_textures[i]->rect->y+VAULT_CONTENTS_FONT_SIZE + INPUT_FONT_SIZE < window_h) {
-                if (i == selected_idx) {
-                    SDL_SetRenderDrawColor(renderer, BLUE.r, BLUE.g, BLUE.b, BLUE.a);
-                    SDL_RenderFillRect(renderer, &(SDL_Rect){
-                        .x=vault_contents_textures[i]->rect->x, 
-                        .y=vault_contents_textures[i]->rect->y,
-                        .w=window_w, 
-                        .h=INPUT_FONT_SIZE
-                    });
-                    SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a); 
-                }
-                SDL_RenderCopy(renderer, vault_contents_textures[i]->t, NULL, vault_contents_textures[i]->rect);
-            }
+            SDL_RenderCopy(renderer, print_these_textures[i]->t, NULL, print_these_textures[i]->rect);
         }
 
         {
@@ -606,7 +631,10 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
         }
     }
     SDL_DestroyTexture(input_texture->t);
-    return selected_idx;
+    if (selected_idx < 0 || print_textures_count == 0) {
+        return -1;
+    }
+    return print_these_textures[selected_idx]->idx;
 }
 
 // TODO: GUI for selecting domain
