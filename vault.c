@@ -530,7 +530,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
             memset(print_these_textures, 0, print_textures_count); // NOTE: just in case
             print_textures_count = 0;
             for (int i=0; i<line_count; i++) {
-                if (input_offset > input_prompt_len && fuzzy_match(vault_contents[i][2], input_buf+input_prompt_len)) {
+                if (input_offset >= input_prompt_len && fuzzy_match(vault_contents[i][2], input_buf+input_prompt_len)) {
                     print_these_textures[print_textures_count] = vault_contents_textures[i];
                     print_textures_count += 1;
                 }
@@ -556,7 +556,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 memset(print_these_textures, 0, print_textures_count); // NOTE: just in case
                 print_textures_count = 0;
                 for (int i=0; i<line_count; i++) {
-                    if (input_offset > input_prompt_len && fuzzy_match(vault_contents[i][2], input_buf+input_prompt_len)) {
+                    if (input_offset >= input_prompt_len && fuzzy_match(vault_contents[i][2], input_buf+input_prompt_len)) {
                         print_these_textures[print_textures_count] = vault_contents_textures[i];
                         print_textures_count += 1;
                     }
