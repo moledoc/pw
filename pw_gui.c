@@ -655,7 +655,7 @@ PwData *gui(char ***vault_contents, int line_count) {
         return NULL;
     }
 
-    SDL_Window *window = SDL_CreateWindow("vault", SDL_WINDOWPOS_UNDEFINED,
+    SDL_Window *window = SDL_CreateWindow("pw_gui", SDL_WINDOWPOS_UNDEFINED,
                                         SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH,
                                         WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE);
 
