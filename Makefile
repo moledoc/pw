@@ -27,19 +27,22 @@ dirs:
 	mkdir -p bin
 
 build: dirs
-	clang -Wall -o ./bin/vault ./vault.c ${CCFLAGS} ${INCLUDES} ${DEFINES} ${LDFLAGS} ${SDLFLAGS}
+	clang -Wall -o ./bin/pwcli ./pwcli.c ${CCFLAGS} ${INCLUDES} ${DEFINES} ${LDFLAGS} ${SDLFLAGS}
+	clang -Wall -o ./bin/pwgui ./pwgui.c ${CCFLAGS} ${INCLUDES} ${DEFINES} ${LDFLAGS} ${SDLFLAGS}
 
 dev: dirs
-	clang -Wall -o ./bin/vault ./vault.c ${DEVFLAGS} ${CCFLAGS} ${INCLUDES} ${DEFINES} ${LDFLAGS} ${SDLFLAGS}
+	clang -Wall -o ./bin/pwcli ./pwcli.c ${DEVFLAGS} ${CCFLAGS} ${INCLUDES} ${DEFINES} ${LDFLAGS} ${SDLFLAGS}
+	clang -Wall -o ./bin/pwgui ./pwgui.c ${DEVFLAGS} ${CCFLAGS} ${INCLUDES} ${DEFINES} ${LDFLAGS} ${SDLFLAGS}
 
 devrun: dev
-	./bin/vault -f ./tests/inputs.txt
+	./bin/pwgui -f ./tests/inputs.txt
 
 release: dirs
-	clang -Wall -o ./bin/vault ./vault.c -O3 ${CCFLAGS} ${INCLUDES} ${DEFINES} ${LDFLAGS} ${SDLFLAGS}
+	clang -Wall -o ./bin/pwcli ./pwcli.c -O3 ${CCFLAGS} ${INCLUDES} ${DEFINES} ${LDFLAGS} ${SDLFLAGS}
+	clang -Wall -o ./bin/pwgui ./pwgui.c -O3 ${CCFLAGS} ${INCLUDES} ${DEFINES} ${LDFLAGS} ${SDLFLAGS}
 
-debug-osx: ./bin/vault
-	lldb ./bin/vault -- -f ./tests/inputs.txt
+debug-osx: ./bin/pwgui
+	lldb ./bin/pwgui -- -f ./tests/inputs.txt
 
 clean:
 	rm -rf bin

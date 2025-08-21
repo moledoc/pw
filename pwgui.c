@@ -19,6 +19,13 @@
 
 #define MD5_IMPLEMENTATION
 #include "./md5.h"
+
+#define MMALLOC_IMPLEMENTATION
+#include "./mmalloc.h"
+
+#define PW_IMPLEMENTATION
+#include "./pw.h"
+
 #include "version.h"
 
 #define ALLOWED_MASTER_KEY_LEN 1024
@@ -61,48 +68,6 @@
 #define RED rgb_to_sdl_color(0xdc322f)
 #define BLUE rgb_to_sdl_color(0x268bd2)
 
-// MAYBE: TODO: use calloc instead of malloc
-
-typedef struct Alloc {
-    void *ptr;
-    struct Alloc *next; 
-} Alloc;
-
-Alloc *alloced_ptrs = NULL;
-
-void mfree() {
-    while (alloced_ptrs != NULL) {
-        Alloc *me = alloced_ptrs;
-        alloced_ptrs = alloced_ptrs->next;
-        if (me != NULL) {
-            if (me->ptr != NULL) {
-                free(me->ptr);
-            }
-            free(me);
-        }
-    }
-}
-
-void *mmalloc(size_t size) {
-    void *ptr = malloc(size);
-    if (ptr == NULL) {
-        fprintf(stderr, "[ERROR]: malloc returned NULL\n");
-        mfree();
-    }
-    assert(ptr != NULL && "unexpected NULL from malloc");
-    memset(ptr, 0, size);
-
-    Alloc *alloced = malloc(sizeof(Alloc)*1);
-    if (alloced == NULL) {
-        fprintf(stderr, "[ERROR]: malloc returned NULL on Alloc\n");
-        mfree();
-    }
-    assert(alloced != NULL && "unexpected NULL from malloc");
-    alloced->ptr = ptr;
-    alloced->next = alloced_ptrs;
-    alloced_ptrs = alloced;
-    return ptr;
-}
 
 long file_size(char *filename) {
   FILE *fptr = fopen(filename, "r");
@@ -183,29 +148,6 @@ void vault_contents_printer(char ***vault_contents, int line_count) {
                 vault_contents[i][3]);
         }
     }
-}
-
-char *pw(char *key, char *salt, char *pepper, char *domain, int digest_len) {
-    int domain_len = strlen(domain);
-    int key_len = strlen(key);
-    int salt_len = strlen(salt);
-    int pepper_len = strlen(pepper);
-    int message_len = domain_len + key_len + salt_len;
-    char message[message_len + 1];
-    message[message_len] = '\0';
-    memcpy(message, domain, domain_len);
-    memcpy(message + domain_len, key, key_len);
-    memcpy(message + domain_len + key_len, salt, salt_len);
-
-    unsigned char digest[16];
-    md5(message, digest);
-    
-    char *pw = mmalloc(sizeof(char)*(digest_len*2+pepper_len+1));
-    for (int i=0; i<digest_len; ++i) {
-        snprintf(pw+i*2, 2+1, "%02x", digest[i]);
-    }
-    snprintf(pw+digest_len*2, pepper_len+1, "%s", pepper);
-    return pw;
 }
 
 void help() {

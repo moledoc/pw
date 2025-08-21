@@ -28,6 +28,8 @@
 
 ## CLI
 
+TODO: reworked cli as well. There's also a breaking change with `-l` param. Update readme
+
 ### Synopsis
 
 ```text
