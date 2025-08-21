@@ -38,5 +38,8 @@ devrun: dev
 release: dirs
 	clang -Wall -o ./bin/vault ./vault.c -O3 ${CCFLAGS} ${INCLUDES} ${DEFINES} ${LDFLAGS} ${SDLFLAGS}
 
+debug-osx: ./bin/vault
+	lldb ./bin/vault -- -f ./tests/inputs.txt
+
 clean:
 	rm -rf bin

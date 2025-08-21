@@ -140,9 +140,10 @@ char ***read_vault_contents(char *arg_filename, int *line_count) {
     }
 
     char ***vault_contents = mmalloc(sizeof(char **)*(*line_count));
+    int content_count = 0;
     int offset = 0;
     for (int i=0; i<(*line_count); ++i) {
-        vault_contents[i] = mmalloc(sizeof(char *)*4); // salt pepper domain "<additional>"
+        vault_contents[content_count] = mmalloc(sizeof(char *)*4); // salt pepper domain "<additional>"
         for (int j=0; j<4; ++j) {
             if (contents[offset] == '\n') {
                 offset += 1; // +1 jump over '\n'
@@ -150,14 +151,18 @@ char ***read_vault_contents(char *arg_filename, int *line_count) {
             }
             int carved_len = 0;
             char *carved = carve_str(contents, read_bytes, offset, &carved_len);
-            vault_contents[i][j] = carved;
+            vault_contents[content_count][j] = carved;
             if (contents[offset+carved_len] == '\n') {
                 offset += carved_len+1; // +1 to jump over '\n'
                 break;
             }
             offset += carved_len+1; // +1 to jump over that ' ' and '\n'
         }
+        if (vault_contents[content_count][2] != NULL) {
+            content_count += 1;
+        }
     }
+    *line_count = content_count;
     return vault_contents;
 }
 
@@ -408,20 +413,12 @@ Texture **create_vault_contents_textures(SDL_Window *window, SDL_Renderer *rende
 
     Texture **textures = mmalloc(sizeof(Texture *)*line_count);
     for (int i=0; i<line_count; i++) {
-        if (vault_contents[i][2] == NULL) {
-            textures[i] = NULL;
-        } else {
-            textures[i] = mmalloc(sizeof(Texture)*1);
-            textures[i]->rect = mmalloc(sizeof(SDL_Rect)*1);
-            textures[i]->idx = i;
-        }
+        textures[i] = mmalloc(sizeof(Texture)*1);
+        textures[i]->rect = mmalloc(sizeof(SDL_Rect)*1);
+        textures[i]->idx = i;
     }
     
     for (int i=0; i<line_count; i++) {
-        if (vault_contents[i] == NULL || vault_contents[i][2] == NULL) {
-            continue;
-        }
-
         SDL_Surface *surface = TTF_RenderUTF8_Solid(font, vault_contents[i][2], BLACK);
         if (surface == NULL) {
             fprintf(stderr, "[WARNING]: failed to create text surface: %s; skipping %s\n", TTF_GetError(), vault_contents[i][2]);
@@ -634,11 +631,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
     SDL_StopTextInput();
 
     for (int i=0; i<line_count; i++) {
-        if (vault_contents[i][2] == NULL) {
-            continue;
-        } else {
-            SDL_DestroyTexture(vault_contents_textures[i]->t);
-        }
+        SDL_DestroyTexture(vault_contents_textures[i]->t);
     }
     SDL_DestroyTexture(input_texture->t);
     if (selected_idx < 0 || print_textures_count == 0) {
