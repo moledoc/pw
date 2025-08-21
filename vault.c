@@ -535,6 +535,10 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                     print_textures_count += 1;
                 }
             }
+
+            if (selected_idx > print_textures_count-1) { // NOTE: keep selection in-place when possible
+                selected_idx = 0;
+            }
             // BACKSPACE END
 
             // ENTER START
@@ -551,7 +555,6 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 input_offset += event_text_len;
                 SDL_DestroyTexture(input_texture->t);
                 input_texture = create_input_texture(window, renderer, font, input_texture, input_buf);
-                selected_idx = 0;
  
                 memset(print_these_textures, 0, print_textures_count); // NOTE: just in case
                 print_textures_count = 0;
@@ -560,6 +563,9 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                         print_these_textures[print_textures_count] = vault_contents_textures[i];
                         print_textures_count += 1;
                     }
+                }
+                if (selected_idx > print_textures_count-1) { // NOTE: keep selection in-place when possible
+                    selected_idx = 0;
                 }
             // TEXT END
 
