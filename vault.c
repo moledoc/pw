@@ -436,7 +436,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
     // TODO: scrollbar
     // TODO: text input
     // TODO: fuzzy-ish finding
-    int result_idx = -1;
+    int selected_idx = 0;
 
     int window_w;
     int window_h;
@@ -462,14 +462,13 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
 
     input_texture = create_input_texture(window, renderer, font, input_texture, input_buf);
     if (input_texture == NULL) {
-        return result_idx;
+        return -1;
     }
 
     Texture **vault_contents_textures = create_vault_contents_textures(window, renderer, font, vault_contents, line_count);
 
     float elapsed = 0;
     bool select_vault_content = true;
-    int selected_idx = 0;
     size_t event_text_len;
     Uint32 start = SDL_GetTicks64();
     Uint32 end = SDL_GetTicks64();    
@@ -491,7 +490,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                             sdl_event.key.keysym.sym == SDLK_d &&
                             sdl_event.key.keysym.mod & KMOD_CTRL)) {
                 select_vault_content = false;
-                result_idx = -1; // NOTE: NULL for early return
+                selected_idx = -1; // NOTE: -1 for early return
                 break;
             // QUIT END
 
@@ -507,13 +506,13 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 input_texture = create_input_texture(window, renderer, font, input_texture, input_buf);
             // BACKSPACE END
 
-            // // ENTER START
-            // } else if (sdl_event.type == SDL_KEYDOWN &&
-            //         sdl_event.key.state == SDL_PRESSED &&
-            //         sdl_event.key.keysym.sym == SDLK_RETURN) {
-            //     select_vault_content = false;
-            //     break;
-            // // ENTER END
+            // ENTER START
+            } else if (sdl_event.type == SDL_KEYDOWN &&
+                    sdl_event.key.state == SDL_PRESSED &&
+                    sdl_event.key.keysym.sym == SDLK_RETURN) {
+                select_vault_content = false;
+                break;
+            // ENTER END
 
             // TEXT START
             } else if (sdl_event.type == SDL_TEXTINPUT && (event_text_len = strlen(sdl_event.text.text)) && input_offset+event_text_len <= input_max_len) {
@@ -598,7 +597,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
         }
     }
     SDL_DestroyTexture(input_texture->t);
-    return result_idx;
+    return selected_idx;
 }
 
 // TODO: GUI for selecting domain
@@ -869,7 +868,7 @@ int main(int argc, char **argv) {
     }
 
     char *password = pw(pw_data->master_key, pw_data->salt, pw_data->pepper, pw_data->domain, pw_data->digest_len);
-    printf("%s\n", password); // REMOVEME:
+    printf("domain %s; password %s\n", pw_data->domain, password); // REMOVEME:
 
     char *prev_clipboard = read_from_clipboard();
     write_to_clipboard((const char *)password);

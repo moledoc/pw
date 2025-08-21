@@ -32,7 +32,7 @@ build: dirs
 dev: dirs
 	clang -Wall -o ./bin/vault ./vault.c ${DEVFLAGS} ${CCFLAGS} ${INCLUDES} ${DEFINES} ${LDFLAGS} ${SDLFLAGS}
 
-run: ./bin/vault
+devrun: dev
 	./bin/vault -f ./tests/inputs.txt
 
 release: dirs
