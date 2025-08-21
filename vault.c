@@ -469,6 +469,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
 
     float elapsed = 0;
     bool select_vault_content = true;
+    int selected_idx = 0;
     size_t event_text_len;
     Uint32 start = SDL_GetTicks64();
     Uint32 end = SDL_GetTicks64();    
@@ -521,6 +522,21 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 SDL_DestroyTexture(input_texture->t);
                 input_texture = create_input_texture(window, renderer, font, input_texture, input_buf);
             // TEXT END
+
+            // ARROW UP SELECT START
+            } else if (sdl_event.type == SDL_KEYDOWN &&
+                    sdl_event.key.state == SDL_PRESSED &&
+                    sdl_event.key.keysym.sym == SDLK_UP && selected_idx > 0) {
+
+                selected_idx -= 1;
+            // ARROW UP SELECT END
+
+            // ARROW DOWN SELECT START
+            } else if (sdl_event.type == SDL_KEYDOWN &&
+                    sdl_event.key.state == SDL_PRESSED &&
+                    sdl_event.key.keysym.sym == SDLK_DOWN && selected_idx < line_count-1) {
+                selected_idx += 1;
+            // ARROW DOWN SELECT END
             
             // WINDOW RESIZE START
             } else if(sdl_event.type == SDL_WINDOWEVENT && sdl_event.window.event == SDL_WINDOWEVENT_RESIZED) {
@@ -538,7 +554,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 continue;
             }
             if (vault_contents_textures[i]->rect->y+VAULT_CONTENTS_FONT_SIZE + INPUT_FONT_SIZE < window_h) {
-                if (i == 0) {// NOTE: just highlight the first row for now
+                if (i == selected_idx) {
                     SDL_SetRenderDrawColor(renderer, BLUE.r, BLUE.g, BLUE.b, BLUE.a);
                     SDL_RenderFillRect(renderer, &(SDL_Rect){
                         .x=vault_contents_textures[i]->rect->x, 
