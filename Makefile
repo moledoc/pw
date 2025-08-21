@@ -35,5 +35,8 @@ dev: dirs
 run: ./bin/vault
 	./bin/vault -f ./tests/inputs.txt
 
+release: dirs
+	clang -Wall -o ./bin/vault ./vault.c -O3 ${CCFLAGS} ${INCLUDES} ${DEFINES} ${LDFLAGS} ${SDLFLAGS}
+
 clean:
 	rm -rf bin

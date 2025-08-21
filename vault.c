@@ -22,16 +22,16 @@
 #include "version.h"
 
 #define ALLOWED_MASTER_KEY_LEN 1024
-#define ALLOWED_INPUT_LEN 1024
+#define INPUT_MAX_LEN 1024
 #define SLEEP_FOR 10 // in seconds
 
 #define WINDOW_WIDTH 960
 #define WINDOW_HEIGHT 540
 
-#define BASE_FONT_SIZE 18
+#define BASE_FONT_SIZE 14
 #define MASTER_KEY_FONT_SIZE 20
-#define VAULT_CONTENTS_FONT_SIZE 12
-#define INPUT_FONT_SIZE 18
+#define VAULT_CONTENTS_FONT_SIZE 14
+#define INPUT_FONT_SIZE 14
 
 #define FRAME_DELAY 16 // in milliseconds; ~60FPS
 #define SCROLLBAR_PADDING 20
@@ -356,15 +356,12 @@ char *ask_master_key(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font)
     return master_key;
 }
 
-Texture *create_input_texture(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font, char *input_buf) {
+Texture *create_input_texture(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font, Texture *input_texture, char *input_buf) {
     TTF_SetFontSize(font, INPUT_FONT_SIZE);
 
     int window_w;
     int window_h;
     SDL_GetWindowSize(window, &window_w, &window_h);
-
-    Texture *input_texture = mmalloc(sizeof(Texture)*1);
-    input_texture->rect = mmalloc(sizeof(SDL_Rect)*1);
 
     SDL_Surface *input_prompt_surface = TTF_RenderUTF8_Solid(font, input_buf, BLACK);
     if (input_prompt_surface == NULL) {
@@ -374,7 +371,7 @@ Texture *create_input_texture(SDL_Window *window, SDL_Renderer *renderer, TTF_Fo
 
     input_texture->rect->x = 0;
     input_texture->rect->y = window_h-INPUT_FONT_SIZE;
-    input_texture->rect->w = input_prompt_surface->h;
+    input_texture->rect->w = input_prompt_surface->w;
     input_texture->rect->h = input_prompt_surface->h;
     input_texture->t = SDL_CreateTextureFromSurface(renderer, input_prompt_surface);
     if (input_texture->t == NULL) {
@@ -438,6 +435,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
 
     // TODO: scrollbar
     // TODO: text input
+    // TODO: fuzzy-ish finding
     int result_idx = -1;
 
     int window_w;
@@ -448,16 +446,21 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
     SDL_Color prev_renderer_color = {0};
     SDL_GetRenderDrawColor(renderer, (Uint8 *)&prev_renderer_color.r, (Uint8 *)&prev_renderer_color.g, (Uint8 *)&prev_renderer_color.b, (Uint8 *)&prev_renderer_color.a);
 
-    int input_allowed_len = ALLOWED_INPUT_LEN+2;
-    int input_offset = 0;
-    char *input_buf = mmalloc(sizeof(char)*(input_allowed_len+1));
-
-    char *input_prompt = "\t>";
+    char *input_prompt = "\t> ";
     size_t input_prompt_len = strlen(input_prompt);
+
+    int input_max_len = INPUT_MAX_LEN+input_prompt_len;
+    int input_offset = 0;
+    char *input_buf = mmalloc(sizeof(char)*(input_max_len+1));
+
     memcpy(input_buf+input_offset, input_prompt, input_prompt_len);
     input_offset += input_prompt_len;
 
-    Texture *input_texture = create_input_texture(window, renderer, font, input_buf);
+
+    Texture *input_texture = mmalloc(sizeof(Texture)*1);
+    input_texture->rect = mmalloc(sizeof(SDL_Rect)*1);
+
+    input_texture = create_input_texture(window, renderer, font, input_texture, input_buf);
     if (input_texture == NULL) {
         return result_idx;
     }
@@ -466,6 +469,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
 
     float elapsed = 0;
     bool select_vault_content = true;
+    size_t event_text_len;
     Uint32 start = SDL_GetTicks64();
     Uint32 end = SDL_GetTicks64();    
     SDL_StartTextInput();
@@ -490,15 +494,17 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 break;
             // QUIT END
 
-            // // BACKSPACE START
-            // } else if (sdl_event.type == SDL_KEYDOWN &&
-            //         sdl_event.key.state == SDL_PRESSED &&
-            //         sdl_event.key.keysym.sym == SDLK_BACKSPACE) {
-            //     master_key[input_offset] = '\0';
-            //     if (input_offset > 0){
-            //         input_offset -= 1;
-            //     }
-            // // BACKSPACE END
+            // BACKSPACE START
+            } else if (sdl_event.type == SDL_KEYDOWN &&
+                    sdl_event.key.state == SDL_PRESSED &&
+                    sdl_event.key.keysym.sym == SDLK_BACKSPACE && 
+                    input_offset > input_prompt_len) {
+
+                input_offset -= 1;
+                input_buf[input_offset] = '\0';
+                SDL_DestroyTexture(input_texture->t);
+                input_texture = create_input_texture(window, renderer, font, input_texture, input_buf);
+            // BACKSPACE END
 
             // // ENTER START
             // } else if (sdl_event.type == SDL_KEYDOWN &&
@@ -508,14 +514,13 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
             //     break;
             // // ENTER END
 
-            // // TEXT START
-            // } else if (sdl_event.type == SDL_TEXTINPUT) {
-            //     size_t event_text_len = strlen(sdl_event.text.text);
-            //     if (input_offset+event_text_len <= master_key_max_len) {
-            //         memcpy(master_key+input_offset, sdl_event.text.text, event_text_len);
-            //         input_offset += event_text_len;
-            //     }
-            // // TEXT END
+            // TEXT START
+            } else if (sdl_event.type == SDL_TEXTINPUT && (event_text_len = strlen(sdl_event.text.text)) && input_offset+event_text_len <= input_max_len) {
+                memcpy(input_buf+input_offset, sdl_event.text.text, event_text_len);
+                input_offset += event_text_len;
+                SDL_DestroyTexture(input_texture->t);
+                input_texture = create_input_texture(window, renderer, font, input_texture, input_buf);
+            // TEXT END
             
             // WINDOW RESIZE START
             } else if(sdl_event.type == SDL_WINDOWEVENT && sdl_event.window.event == SDL_WINDOWEVENT_RESIZED) {
