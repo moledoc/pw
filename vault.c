@@ -207,6 +207,16 @@ void help() {
     printf("TODO: help\n");
 }
 
+bool fuzzy_match(const char *text, const char *pattern) {
+    while (*text != '\0' && *pattern != '\0') {
+        if (*text == *pattern) {
+            pattern++;
+        }
+        text++;
+    }
+    return *pattern == '\0';
+}
+
 typedef struct {
     char *master_key;
     char *salt;
@@ -520,6 +530,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 input_offset += event_text_len;
                 SDL_DestroyTexture(input_texture->t);
                 input_texture = create_input_texture(window, renderer, font, input_texture, input_buf);
+                selected_idx = 0;
             // TEXT END
 
             // ARROW UP SELECT START
@@ -547,9 +558,11 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
 
         SDL_RenderClear(renderer);
         // TODO: fuzzy finding - firstly naive O(n) solution
-        // TODO: handle highlight
         for (int i=0; i<line_count; i++) {
             if (vault_contents_textures[i] == NULL) {
+                continue;
+            }
+            if (input_offset > input_prompt_len && !fuzzy_match(vault_contents[i][2], input_buf+input_prompt_len)) {
                 continue;
             }
             if (vault_contents_textures[i]->rect->y+VAULT_CONTENTS_FONT_SIZE + INPUT_FONT_SIZE < window_h) {
@@ -561,19 +574,15 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                         .w=window_w, 
                         .h=INPUT_FONT_SIZE
                     });
-
-                    SDL_RenderCopy(renderer, vault_contents_textures[i]->t, NULL, vault_contents_textures[i]->rect);
-                    SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a);    
-                } else {
-                    SDL_RenderCopy(renderer, vault_contents_textures[i]->t, NULL, vault_contents_textures[i]->rect);
-
+                    SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a); 
                 }
+                SDL_RenderCopy(renderer, vault_contents_textures[i]->t, NULL, vault_contents_textures[i]->rect);
             }
         }
 
         {
             SDL_SetRenderDrawColor(renderer, BLACK.r, BLACK.g, BLACK.b, BLACK.a);
-            SDL_RenderFillRect(renderer, &(SDL_Rect){.x=0, .y=window_h - INPUT_FONT_SIZE,.w=window_w, .h=1});
+            SDL_RenderFillRect(renderer, &(SDL_Rect){.x=0, .y=window_h - INPUT_FONT_SIZE,.w=window_w, .h=1}); // NOTE: border to sep vault content from input
             SDL_RenderCopy(renderer, input_texture->t, NULL, input_texture->rect);
             SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a);
         }
