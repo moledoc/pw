@@ -588,6 +588,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
 
         SDL_RenderClear(renderer);
         // TODO: fuzzy finding - firstly naive O(n) solution
+        int offset_h = 0;
         for (int i=0; i<print_textures_count; i++) {
             if (print_these_textures[i]->rect->y+VAULT_CONTENTS_FONT_SIZE + INPUT_FONT_SIZE >= window_h) {
                 break;
@@ -602,7 +603,10 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 });
                 SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a); 
             }
-            SDL_RenderCopy(renderer, print_these_textures[i]->t, NULL, print_these_textures[i]->rect);
+            SDL_Rect *corrected_rect = print_these_textures[i]->rect;
+            corrected_rect->y = offset_h;
+            offset_h += corrected_rect->h;
+            SDL_RenderCopy(renderer, print_these_textures[i]->t, NULL, corrected_rect);
         }
 
         {
