@@ -502,6 +502,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 if (selected_idx > print_textures_count-1) { // NOTE: keep selection in-place when possible
                     selected_idx = 0;
                 }
+                vertical_offset_idx = 0;
             // END BACKSPACE
 
             // START ENTER
@@ -532,6 +533,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 if (selected_idx > print_textures_count-1) { // NOTE: keep selection in-place when possible
                     selected_idx = 0;
                 }
+                vertical_offset_idx = 0;
             // END TEXT
 
             // START ARROW UP SELECT
