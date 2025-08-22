@@ -41,7 +41,9 @@
 #define INPUT_FONT_SIZE 14
 
 #define FRAME_DELAY 16 // in milliseconds; ~60FPS
+
 #define SCROLLBAR_PADDING 20
+#define SCROLL_ACCELERATE 1
 
 #ifdef __APPLE__
 #define GUI_FONT "/System/Library/Fonts/Monaco.ttf"
@@ -67,7 +69,13 @@
 #define WHITE rgb_to_sdl_color(0xF0EEE9)
 #define RED rgb_to_sdl_color(0xdc322f)
 #define BLUE rgb_to_sdl_color(0x268bd2)
+#define SCROLLBAR rgb_to_sdl_color(0xA39F94)
 
+int clamp(int target, int lower_bound, int upper_bound) {
+    return target * (lower_bound <= target && target <= upper_bound) +
+            lower_bound * (target < lower_bound) +
+            upper_bound * (upper_bound < target);
+}
 
 long file_size(char *filename) {
   FILE *fptr = fopen(filename, "r");
@@ -220,6 +228,8 @@ char *ask_master_key(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font)
 
     SDL_GetWindowSize(window, &window_w, &window_h);    
     SDL_SetRenderDrawColor(renderer, WHITE.r, WHITE.g, WHITE.b, WHITE.a);
+    
+    SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, master_key_texture->t, NULL, master_key_texture->rect);
     SDL_RenderPresent(renderer);
 
@@ -232,8 +242,9 @@ char *ask_master_key(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font)
     while (asking_for_master_key) {
         start = SDL_GetTicks64();
         SDL_Event sdl_event = {0};
+        bool any_changes = false;
         while (SDL_PollEvent(&sdl_event) > 0) {
-            // QUIT START
+            // START QUIT
             if (sdl_event.type == SDL_QUIT || 
                 (sdl_event.type == SDL_WINDOWEVENT && sdl_event.window.event == SDL_WINDOWEVENT_CLOSE) || 
                     (sdl_event.type == SDL_KEYDOWN &&
@@ -247,42 +258,52 @@ char *ask_master_key(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font)
                 asking_for_master_key = false;
                 master_key = NULL; // NOTE: NULL for early return
                 break;
-            // QUIT END
+            // END QUIT
 
-            // BACKSPACE START
+            // START BACKSPACE
             } else if (sdl_event.type == SDL_KEYDOWN &&
                     sdl_event.key.state == SDL_PRESSED &&
                     sdl_event.key.keysym.sym == SDLK_BACKSPACE) {
+                any_changes = true;
+
                 master_key[input_offset] = '\0';
                 if (input_offset > 0){
                     input_offset -= 1;
                 }
-            // BACKSPACE END
+            // END BACKSPACE
 
-            // ENTER START
+            // START ENTER
             } else if (sdl_event.type == SDL_KEYDOWN &&
                     sdl_event.key.state == SDL_PRESSED &&
                     sdl_event.key.keysym.sym == SDLK_RETURN) {
                 asking_for_master_key = false;
                 break;
-            // ENTER END
+            // END ENTER
 
-            // TEXT START
+            // START TEXT
             } else if (sdl_event.type == SDL_TEXTINPUT) {
+                any_changes = true;
+
                 size_t event_text_len = strlen(sdl_event.text.text);
                 if (input_offset+event_text_len <= master_key_max_len) {
                     memcpy(master_key+input_offset, sdl_event.text.text, event_text_len);
                     input_offset += event_text_len;
                 }
-            // TEXT END
+            // END TEXT
 
-            // WINDOW RESIZE START
+            // START WINDOW RESIZE
             } else if (sdl_event.type == SDL_WINDOWEVENT && sdl_event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                any_changes = true;
+
                 SDL_GetWindowSize(window, &window_w, &window_h);
                 master_key_texture->rect->x = (window_w-master_key_texture->rect->w)/2;
                 master_key_texture->rect->y = (window_h-master_key_texture->rect->h)/2;
-            // WINDOW RESIZE END
+            // END WINDOW RESIZE
             }
+        }
+
+        if (!any_changes) {
+            goto key_loop_delay;
         }
 
         SDL_GetWindowSize(window, &window_w, &window_h);
@@ -305,6 +326,7 @@ char *ask_master_key(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font)
 
         prev_input_offset = input_offset;
 
+key_loop_delay:
         end = SDL_GetTicks64();
         elapsed = end - start;
         if (elapsed <= FRAME_DELAY) {
@@ -345,7 +367,7 @@ Texture *create_input_texture(SDL_Window *window, SDL_Renderer *renderer, TTF_Fo
 }
 
 
-Texture **create_vault_contents_textures(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font, char ***vault_contents, int line_count) {
+Texture **create_vault_contents_textures(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font, char ***vault_contents, int line_count, int *max_offset_h) {
     TTF_SetFontSize(font, VAULT_CONTENTS_FONT_SIZE);
 
     int window_w;
@@ -381,19 +403,15 @@ Texture **create_vault_contents_textures(SDL_Window *window, SDL_Renderer *rende
         }
         SDL_FreeSurface(surface);
     }
-
+    *max_offset_h = h_offset;
     return textures;
 }
 
 int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font, char ***vault_contents, int line_count) {
 
-    // TODO: scrollbar
-    // TODO: fuzzy-ish finding
-
     int window_w;
     int window_h;
     SDL_GetWindowSize(window, &window_w, &window_h);
-    int vertical_scroll = 0; // TODO:
 
     SDL_Color prev_renderer_color = {0};
     SDL_GetRenderDrawColor(renderer, (Uint8 *)&prev_renderer_color.r, (Uint8 *)&prev_renderer_color.g, (Uint8 *)&prev_renderer_color.b, (Uint8 *)&prev_renderer_color.a);
@@ -417,7 +435,8 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
         return -1;
     }
 
-    Texture **vault_contents_textures = create_vault_contents_textures(window, renderer, font, vault_contents, line_count);
+    int max_offset_h = 0;
+    Texture **vault_contents_textures = create_vault_contents_textures(window, renderer, font, vault_contents, line_count, &max_offset_h);
 
     Texture **print_these_textures = mmalloc(sizeof(Texture *)*line_count);
     int print_textures_count = 0;
@@ -430,66 +449,73 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
     float elapsed = 0;
     bool select_vault_content = true;
     int selected_idx = 0;
+    int vertical_offset_idx = 0;
     size_t event_text_len;
     Uint32 start = SDL_GetTicks64();
     Uint32 end = SDL_GetTicks64();    
     SDL_StartTextInput();
 
+    goto vault_loop_render; // NOTE: to draw on first iteration
+
     while (select_vault_content) {
         start = SDL_GetTicks64();
         SDL_Event sdl_event = {0};
+        bool any_changes = false;
         while (SDL_PollEvent(&sdl_event) > 0) {
-            // QUIT START
+            // START QUIT
             if (sdl_event.type == SDL_QUIT || 
                 (sdl_event.type == SDL_WINDOWEVENT && sdl_event.window.event == SDL_WINDOWEVENT_CLOSE) || 
                     (sdl_event.type == SDL_KEYDOWN &&
                         sdl_event.key.state == SDL_PRESSED &&
                         sdl_event.key.keysym.sym == SDLK_c &&
                         sdl_event.key.keysym.mod & KMOD_CTRL) || 
-                        (sdl_event.type == SDL_KEYDOWN &&
-                            sdl_event.key.state == SDL_PRESSED &&
-                            sdl_event.key.keysym.sym == SDLK_d &&
-                            sdl_event.key.keysym.mod & KMOD_CTRL)) {
+                    (sdl_event.type == SDL_KEYDOWN &&
+                        sdl_event.key.state == SDL_PRESSED &&
+                        sdl_event.key.keysym.sym == SDLK_d &&
+                        sdl_event.key.keysym.mod & KMOD_CTRL)) {
                 select_vault_content = false;
                 selected_idx = -1; // NOTE: -1 for early return
                 break;
-            // QUIT END
+            // END QUIT
 
-            // BACKSPACE START
+            // START BACKSPACE
             } else if (sdl_event.type == SDL_KEYDOWN &&
                     sdl_event.key.state == SDL_PRESSED &&
                     sdl_event.key.keysym.sym == SDLK_BACKSPACE && 
                     input_offset > input_prompt_len) {
+                any_changes = true;
 
-            input_offset -= 1;
-            input_buf[input_offset] = '\0';
-            SDL_DestroyTexture(input_texture->t);
-            input_texture = create_input_texture(window, renderer, font, input_texture, input_buf);
-                
-            memset(print_these_textures, 0, print_textures_count); // NOTE: just in case
-            print_textures_count = 0;
-            for (int i=0; i<line_count; i++) {
-                if (input_offset >= input_prompt_len && fuzzy_match(vault_contents[i][2], input_buf+input_prompt_len)) {
-                    print_these_textures[print_textures_count] = vault_contents_textures[i];
-                    print_textures_count += 1;
+                input_offset -= 1;
+                input_buf[input_offset] = '\0';
+                SDL_DestroyTexture(input_texture->t);
+                input_texture = create_input_texture(window, renderer, font, input_texture, input_buf);
+                    
+                memset(print_these_textures, 0, print_textures_count); // NOTE: just in case
+                print_textures_count = 0;
+                for (int i=0; i<line_count; i++) {
+                    if (input_offset >= input_prompt_len && fuzzy_match(vault_contents[i][2], input_buf+input_prompt_len)) {
+                        print_these_textures[print_textures_count] = vault_contents_textures[i];
+                        print_textures_count += 1;
+                    }
                 }
-            }
 
-            if (selected_idx > print_textures_count-1) { // NOTE: keep selection in-place when possible
-                selected_idx = 0;
-            }
-            // BACKSPACE END
+                if (selected_idx > print_textures_count-1) { // NOTE: keep selection in-place when possible
+                    selected_idx = 0;
+                }
+            // END BACKSPACE
 
-            // ENTER START
+            // START ENTER
             } else if (sdl_event.type == SDL_KEYDOWN &&
                     sdl_event.key.state == SDL_PRESSED &&
                     sdl_event.key.keysym.sym == SDLK_RETURN) {
                 select_vault_content = false;
                 break;
-            // ENTER END
+            // END ENTER
 
-            // TEXT START
+            // START TEXT
             } else if (sdl_event.type == SDL_TEXTINPUT && (event_text_len = strlen(sdl_event.text.text)) && input_offset+event_text_len <= input_max_len) {
+                any_changes = true;
+
                 memcpy(input_buf+input_offset, sdl_event.text.text, event_text_len);
                 input_offset += event_text_len;
                 SDL_DestroyTexture(input_texture->t);
@@ -506,48 +532,69 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 if (selected_idx > print_textures_count-1) { // NOTE: keep selection in-place when possible
                     selected_idx = 0;
                 }
-            // TEXT END
+            // END TEXT
 
-            // ARROW UP SELECT START
+            // START ARROW UP SELECT
             } else if (sdl_event.type == SDL_KEYDOWN &&
                     sdl_event.key.state == SDL_PRESSED &&
                     sdl_event.key.keysym.sym == SDLK_UP && 0 < selected_idx && selected_idx < print_textures_count) {
+                any_changes = true;
 
                 selected_idx -= 1;
-            // ARROW UP SELECT END
+                if (0 < vertical_offset_idx && 
+                    print_these_textures[selected_idx]->rect->y-(vertical_offset_idx-1)*VAULT_CONTENTS_FONT_SIZE < 0) {
+                    vertical_offset_idx -= 1;
+                }
+                
+            // END ARROW UP SELECT
 
-            // ARROW DOWN SELECT START
+            // START ARROW DOWN SELECT
             } else if (sdl_event.type == SDL_KEYDOWN &&
                     sdl_event.key.state == SDL_PRESSED &&
                     sdl_event.key.keysym.sym == SDLK_DOWN && 0 <= selected_idx && selected_idx < print_textures_count-1) {
+                any_changes = true;
+        
                 selected_idx += 1;
-            // ARROW DOWN SELECT END
+
+                if (window_h-INPUT_FONT_SIZE < print_these_textures[selected_idx]->rect->y+VAULT_CONTENTS_FONT_SIZE) {
+                    vertical_offset_idx += 1;
+                }
+            // END ARROW DOWN SELECT            
             
             // WINDOW RESIZE START
             } else if(sdl_event.type == SDL_WINDOWEVENT && sdl_event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                any_changes = true;
+
                 SDL_GetWindowSize(window, &window_w, &window_h);
                 input_texture->rect->y = window_h-INPUT_FONT_SIZE;
-            // WINDOW RESIZE END
+            // END WINDOW RESIZE
             }
         }
 
+        if (!any_changes) {
+            goto vault_loop_delay;
+        }
+
+
+vault_loop_render:
         SDL_RenderClear(renderer);
-        // TODO: fuzzy finding - firstly naive O(n) solution
         int offset_h = 0;
-        for (int i=0; i<print_textures_count; i++) {
-            if (print_these_textures[i]->rect->y+VAULT_CONTENTS_FONT_SIZE + INPUT_FONT_SIZE >= window_h) {
+        for (int i=vertical_offset_idx; i<print_textures_count; i++) {
+            if (print_these_textures[i]->rect->y < 0 ||
+                window_h - INPUT_FONT_SIZE < offset_h + VAULT_CONTENTS_FONT_SIZE) {
                 break;
             }
             if (i == selected_idx) {
                 SDL_SetRenderDrawColor(renderer, BLUE.r, BLUE.g, BLUE.b, BLUE.a);
                 SDL_RenderFillRect(renderer, &(SDL_Rect){
                     .x=print_these_textures[i]->rect->x, 
-                    .y=print_these_textures[i]->rect->y,
+                    .y=offset_h,
                     .w=window_w, 
                     .h=INPUT_FONT_SIZE
                 });
                 SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a); 
             }
+
             SDL_Rect *corrected_rect = print_these_textures[i]->rect;
             corrected_rect->y = offset_h;
             offset_h += corrected_rect->h;
@@ -555,14 +602,32 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
         }
 
         {
+            // horizontal border
             SDL_SetRenderDrawColor(renderer, BLACK.r, BLACK.g, BLACK.b, BLACK.a);
-            SDL_RenderFillRect(renderer, &(SDL_Rect){.x=0, .y=window_h - INPUT_FONT_SIZE,.w=window_w, .h=1}); // NOTE: border to sep vault content from input
+            SDL_RenderFillRect(renderer, &(SDL_Rect){.x=0, .y=window_h - INPUT_FONT_SIZE, .w=window_w, .h=1}); // NOTE: border to sep vault content from input
             SDL_RenderCopy(renderer, input_texture->t, NULL, input_texture->rect);
             SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a);
         }
+
+        // {
+        //     // vertical border
+        //     SDL_SetRenderDrawColor(renderer, BLACK.r, BLACK.g, BLACK.b, BLACK.a);
+        //     SDL_RenderFillRect(renderer, &(SDL_Rect){.x=SCROLLBAR_PADDING-1, .y=0, .w=1, .h=window_h-INPUT_FONT_SIZE}); // NOTE: border to sep vault content from scrollbar
+        //     SDL_RenderCopy(renderer, input_texture->t, NULL, input_texture->rect);
+        //     SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a);
+
+        //     // scrollbar
+        //     int scrollbar_height = window_h*offset_h/max_offset_h;
+        //     vertical_scroll =  clamp(vertical_scroll, 0, window_h-INPUT_FONT_SIZE-scrollbar_height);
+        //     SDL_SetRenderDrawColor(renderer, SCROLLBAR.r, SCROLLBAR.g, SCROLLBAR.b, SCROLLBAR.a);
+        //     SDL_RenderFillRect(renderer, &(SDL_Rect){.x=0, .y=vertical_scroll, .w=SCROLLBAR_PADDING-1, .h=scrollbar_height});
+        //     SDL_RenderCopy(renderer, input_texture->t, NULL, input_texture->rect);
+        //     SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a);
+        // }
         
         SDL_RenderPresent(renderer);
 
+vault_loop_delay:
         end = SDL_GetTicks64();
         elapsed = end - start;
         if (elapsed <= FRAME_DELAY) {
@@ -607,7 +672,7 @@ PwData *gui(char ***vault_contents, int line_count) {
         return NULL;
     }
 
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0); // SDL_RENDERER_ACCELERATED | SDL_RENDERER_SOFTWARE | SDL_RENDERER_PRESENTVSYNC);
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
     if (renderer == NULL) {
         fprintf(stderr, "failed to create renderer: '%s'\n", SDL_GetError());
         SDL_DestroyWindow(window);
