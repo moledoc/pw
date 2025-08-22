@@ -172,7 +172,7 @@ typedef struct {
     char *salt;
     char *pepper;
     char *domain;
-    int digest_len;
+    int length;
 } PwData;
 
 typedef struct {
@@ -665,14 +665,9 @@ PwData *gui(char ***vault_contents, int line_count) {
     pw_data->salt = vault_contents[idx][0];
     pw_data->pepper = vault_contents[idx][1];
     pw_data->domain = vault_contents[idx][2];
-    pw_data->digest_len = 16;
+    pw_data->length = 0;
     if (vault_contents[idx][3] != NULL) {
-        int tmp_digest_len = atoi(vault_contents[idx][3]);
-        if (0 < tmp_digest_len && tmp_digest_len <= 16) {
-            pw_data->digest_len = tmp_digest_len;
-        } else {
-            fprintf(stderr, "[WARNING]: invalid digest length for %s: expected value between (0, 16], but got '%s'\n", pw_data->domain, vault_contents[idx][3]);
-        }
+        pw_data->length = atoi(vault_contents[idx][3]);
     }
 
     return pw_data;
@@ -849,7 +844,7 @@ int main(int argc, char **argv) {
         goto exit_main;
     }
 
-    char *password = pw(pw_data->master_key, pw_data->salt, pw_data->pepper, pw_data->domain, pw_data->digest_len);
+    char *password = pw(pw_data->master_key, pw_data->salt, pw_data->pepper, pw_data->domain, pw_data->length);
     printf("domain %s; password %s\n", pw_data->domain, password); // REMOVEME:
 
     char *prev_clipboard = read_from_clipboard();
