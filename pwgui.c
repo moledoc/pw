@@ -229,10 +229,6 @@ char *ask_master_key(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font)
 
     SDL_GetRendererOutputSize(renderer, &window_w, &window_h);    
     SDL_SetRenderDrawColor(renderer, WHITE.r, WHITE.g, WHITE.b, WHITE.a);
-    
-    // SDL_RenderClear(renderer);
-    // SDL_RenderCopy(renderer, master_key_texture->t, NULL, master_key_texture->rect);
-    // SDL_RenderPresent(renderer);
 
     float elapsed = 0;
     bool asking_for_master_key = true;
@@ -412,6 +408,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
     int window_w;
     int window_h;
     SDL_GetRendererOutputSize(renderer, &window_w, &window_h);
+    vault_contents_lower_limit = window_h - font_size - padding; // NOTE: just in case recalc, as window might've been resized when asking master key
 
     SDL_Color prev_renderer_color = {0};
     SDL_GetRenderDrawColor(renderer, (Uint8 *)&prev_renderer_color.r, (Uint8 *)&prev_renderer_color.g, (Uint8 *)&prev_renderer_color.b, (Uint8 *)&prev_renderer_color.a);
@@ -604,7 +601,6 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
             
             // WINDOW RESIZE START
             // TODO: some weird behaviors when resizing, fix them
-            // * resize during master key asking - input area not shown
             // * resize doesn't snap to selected item
             } else if(sdl_event.type == SDL_WINDOWEVENT && sdl_event.window.event == SDL_WINDOWEVENT_RESIZED) {
                 any_changes = true;
