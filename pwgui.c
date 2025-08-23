@@ -42,7 +42,7 @@
 #ifdef __APPLE__
 #define FONT "/System/Library/Fonts/Menlo.ttc"
 #elif __linux__
-#define FONT "/usr/share/fonts/truetype/freefont/FreeMono.ttf"
+#define FONT "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 #elif _WIN32
 #define FONT "TODO:"
 #endif
@@ -529,10 +529,13 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 vertical_offset_idx = 0;
             // END TEXT
 
-            // START ARROW UP SELECT
-            } else if (sdl_event.type == SDL_KEYDOWN &&
-                    sdl_event.key.state == SDL_PRESSED &&
-                    sdl_event.key.keysym.sym == SDLK_UP && 0 < selected_idx && selected_idx < print_textures_count) {
+            // START SELECT UP
+            } else if (
+                (0 < selected_idx && selected_idx < print_textures_count) && (
+                        (sdl_event.type == SDL_KEYDOWN && sdl_event.key.state == SDL_PRESSED && sdl_event.key.keysym.sym == SDLK_UP)  ||
+                        (sdl_event.type == SDL_MOUSEWHEEL && sdl_event.wheel.y > 0)
+                    )
+                ) {
                 any_changes = true;
 
                 if (0 < vertical_offset_idx && 
@@ -540,12 +543,15 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                     vertical_offset_idx -= 1;
                 }
                 selected_idx -= 1;
-            // END ARROW UP SELECT
+            // END SELECT UP
 
-            // START ARROW DOWN SELECT
-            } else if (sdl_event.type == SDL_KEYDOWN &&
-                    sdl_event.key.state == SDL_PRESSED &&
-                    sdl_event.key.keysym.sym == SDLK_DOWN && 0 <= selected_idx && selected_idx < print_textures_count-1) {
+            // START SELECT DOWN
+            } else if (
+                (0 <= selected_idx && selected_idx < print_textures_count-1) && (
+                        (sdl_event.type == SDL_KEYDOWN && sdl_event.key.state == SDL_PRESSED && sdl_event.key.keysym.sym == SDLK_DOWN) ||
+                        (sdl_event.type == SDL_MOUSEWHEEL && sdl_event.wheel.y < 0)
+                    )
+                ) {
                 any_changes = true;
         
                 selected_idx += 1;
@@ -553,7 +559,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 if (window_h-font_size < print_these_textures[selected_idx]->rect->y+font_size) {
                     vertical_offset_idx += 1;
                 }
-            // END ARROW DOWN SELECT            
+            // END SELECT DOWN
             
             // WINDOW RESIZE START
             } else if(sdl_event.type == SDL_WINDOWEVENT && sdl_event.window.event == SDL_WINDOWEVENT_RESIZED) {
