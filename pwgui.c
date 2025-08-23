@@ -38,6 +38,7 @@
 #define FONT_SIZE 13
 #define PADDING 5
 #define FRAME_DELAY 16 // in milliseconds; ~60FPS
+#define MILLISECOND 1
 
 #ifdef __APPLE__
 #define FONT "/System/Library/Fonts/Menlo.ttc"
@@ -446,7 +447,8 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
     int vertical_offset_idx = 0;
     size_t event_text_len;
     Uint32 start = SDL_GetTicks64();
-    Uint32 end = SDL_GetTicks64();    
+    Uint32 end = SDL_GetTicks64();  
+    Uint64 last_mouse_click_tick = 0;  
     SDL_StartTextInput();
 
     goto vault_loop_render; // NOTE: to draw on first iteration
@@ -551,6 +553,13 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 sdl_event.button.state == SDL_PRESSED &&
                 sdl_event.button.button == SDL_BUTTON_LEFT) {
             any_changes = true;
+
+            Uint64 current_tick = SDL_GetTicks64();
+            if (current_tick - last_mouse_click_tick <= 250 * MILLISECOND) { // NOTE: double-click equals to enter
+                select_vault_content = false;
+                break;
+            }
+            last_mouse_click_tick = current_tick;
 
             int mouse_y;
             SDL_GetMouseState(NULL, &mouse_y);
