@@ -600,14 +600,22 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
             // END MOUSE SELECT
             
             // WINDOW RESIZE START
-            // TODO: some weird behaviors when resizing, fix them
-            // * resize doesn't snap to selected item
             } else if(sdl_event.type == SDL_WINDOWEVENT && sdl_event.window.event == SDL_WINDOWEVENT_RESIZED) {
                 any_changes = true;
 
                 SDL_GetRendererOutputSize(renderer, &window_w, &window_h);
                 vault_contents_lower_limit = window_h - font_size - padding;
                 input_texture->rect->y = vault_contents_lower_limit; // window_h-font_size;
+
+                int offset_h = 0;
+                for (int i=0; i<selected_idx; i++) { // NOTE: only change if selected_idx wouldn't fit anymore - then select last visible
+                    if (vault_contents_lower_limit /*window_h - font_size*/ < offset_h + font_size) {
+                        selected_idx = i > 0 ? i-1 : 0;
+                        vertical_offset_idx = 0;
+                        break;
+                    }
+                    offset_h += print_these_textures[i]->rect->h;
+                }
             // END WINDOW RESIZE
             }
         }
