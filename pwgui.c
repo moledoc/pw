@@ -66,6 +66,7 @@
 #define SCROLLBAR rgb_to_sdl_color(0xA39F94)
 
 int font_size = FONT_SIZE;
+float scale = 1.0f;
 
 int clamp(int target, int lower_bound, int upper_bound) {
     return target * (lower_bound <= target && target <= upper_bound) +
@@ -545,6 +546,26 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 selected_idx -= 1;
             // END SELECT UP
 
+            // START MOUSE SELECT
+            } else if (sdl_event.type == SDL_MOUSEBUTTONDOWN  &&
+                sdl_event.button.state == SDL_PRESSED &&
+                sdl_event.button.button == SDL_BUTTON_LEFT) {
+            any_changes = true;
+
+            int mouse_y;
+            SDL_GetMouseState(NULL, &mouse_y);
+            mouse_y *= scale;
+
+            for (int i=vertical_offset_idx; i<print_textures_count; i++) {
+                int rect_h_start = print_these_textures[i]->rect->y;
+                int rect_h_end = print_these_textures[i]->rect->y + print_these_textures[i]->rect->h;
+                if (mouse_y < window_h-font_size && rect_h_start <= mouse_y && mouse_y < rect_h_end) {
+                    selected_idx = print_these_textures[i]->idx;
+                    break;
+                }
+            }
+            // END MOUSE SELECT
+
             // START SELECT DOWN
             } else if (
                 (0 <= selected_idx && selected_idx < print_textures_count-1) && (
@@ -670,7 +691,7 @@ PwData *gui(char ***vault_contents, int line_count) {
     SDL_GetRendererOutputSize(renderer, &renderer_w, &renderer_h);
     float scale_w = renderer_w/logical_w;
     float scale_h = renderer_h/logical_h;
-    float scale = (scale_w + scale_h) / 2.0f;
+    scale = (scale_w + scale_h) / 2.0f;
 
     font_size *= scale;
 
