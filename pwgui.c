@@ -66,8 +66,12 @@
 #define BLUE rgb_to_sdl_color(0x268bd2)
 #define SCROLLBAR rgb_to_sdl_color(0xA39F94)
 
-int font_size = FONT_SIZE;
 float scale = 1.0f;
+float font_size = FONT_SIZE;
+float padding = PADDING;
+float vault_contents_lower_limit = WINDOW_HEIGHT - FONT_SIZE - PADDING;
+
+// TODO: remove `window_h-font` commented out code
 
 int clamp(int target, int lower_bound, int upper_bound) {
     return target * (lower_bound <= target && target <= upper_bound) +
@@ -226,9 +230,9 @@ char *ask_master_key(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font)
     SDL_GetRendererOutputSize(renderer, &window_w, &window_h);    
     SDL_SetRenderDrawColor(renderer, WHITE.r, WHITE.g, WHITE.b, WHITE.a);
     
-    SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, master_key_texture->t, NULL, master_key_texture->rect);
-    SDL_RenderPresent(renderer);
+    // SDL_RenderClear(renderer);
+    // SDL_RenderCopy(renderer, master_key_texture->t, NULL, master_key_texture->rect);
+    // SDL_RenderPresent(renderer);
 
     float elapsed = 0;
     bool asking_for_master_key = true;
@@ -236,6 +240,7 @@ char *ask_master_key(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font)
     Uint32 end = SDL_GetTicks64();    
     SDL_StartTextInput();
 
+    goto master_key_loop_render; // NOTE: render on first iter
     while (asking_for_master_key) {
         start = SDL_GetTicks64();
         SDL_Event sdl_event = {0};
@@ -303,6 +308,7 @@ char *ask_master_key(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font)
             goto key_loop_delay;
         }
 
+master_key_loop_render:
         SDL_GetRendererOutputSize(renderer, &window_w, &window_h);
         if (prev_input_offset == 0 && 
             0 < input_offset && input_offset < master_key_max_len) { // from 0
@@ -348,8 +354,8 @@ Texture *create_input_texture(SDL_Window *window, SDL_Renderer *renderer, TTF_Fo
         return NULL;
     }
 
-    input_texture->rect->x = PADDING;
-    input_texture->rect->y = window_h-font_size;
+    input_texture->rect->x = padding;
+    input_texture->rect->y = vault_contents_lower_limit; // window_h-font_size;
     input_texture->rect->w = input_prompt_surface->w;
     input_texture->rect->h = input_prompt_surface->h;
     input_texture->t = SDL_CreateTextureFromSurface(renderer, input_prompt_surface);
@@ -361,7 +367,6 @@ Texture *create_input_texture(SDL_Window *window, SDL_Renderer *renderer, TTF_Fo
     SDL_FreeSurface(input_prompt_surface);
     return input_texture;
 }
-
 
 Texture **create_vault_contents_textures(SDL_Window *window, SDL_Renderer *renderer, TTF_Font *font, char ***vault_contents, int line_count, int *max_offset_h) {
 
@@ -384,7 +389,7 @@ Texture **create_vault_contents_textures(SDL_Window *window, SDL_Renderer *rende
             continue;
         }
 
-        textures[i]->rect->x = PADDING;
+        textures[i]->rect->x = padding;
         textures[i]->rect->y = h_offset;
         textures[i]->rect->w = surface->w;
         textures[i]->rect->h = surface->h;
@@ -548,33 +553,6 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 selected_idx -= 1;
             // END SELECT UP
 
-            // START MOUSE SELECT
-            } else if (sdl_event.type == SDL_MOUSEBUTTONDOWN  &&
-                sdl_event.button.state == SDL_PRESSED &&
-                sdl_event.button.button == SDL_BUTTON_LEFT) {
-            any_changes = true;
-
-            Uint64 current_tick = SDL_GetTicks64();
-            if (current_tick - last_mouse_click_tick <= 250 * MILLISECOND) { // NOTE: double-click equals to enter
-                select_vault_content = false;
-                break;
-            }
-            last_mouse_click_tick = current_tick;
-
-            int mouse_y;
-            SDL_GetMouseState(NULL, &mouse_y);
-            mouse_y *= scale;
-
-            for (int i=vertical_offset_idx; i<print_textures_count; i++) {
-                int rect_h_start = print_these_textures[i]->rect->y;
-                int rect_h_end = print_these_textures[i]->rect->y + print_these_textures[i]->rect->h;
-                if (mouse_y < window_h-font_size && rect_h_start <= mouse_y && mouse_y < rect_h_end) {
-                    selected_idx = print_these_textures[i]->idx;
-                    break;
-                }
-            }
-            // END MOUSE SELECT
-
             // START SELECT DOWN
             } else if (
                 (0 <= selected_idx && selected_idx < print_textures_count-1) && (
@@ -586,17 +564,54 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
         
                 selected_idx += 1;
 
-                if (window_h-font_size < print_these_textures[selected_idx]->rect->y+font_size) {
+                if (vault_contents_lower_limit /*window_h-font_size*/ < print_these_textures[selected_idx]->rect->y+font_size) {
                     vertical_offset_idx += 1;
                 }
             // END SELECT DOWN
+
+            // START MOUSE SELECT
+            } else if (sdl_event.type == SDL_MOUSEBUTTONDOWN  &&
+                sdl_event.button.state == SDL_PRESSED &&
+                sdl_event.button.button == SDL_BUTTON_LEFT) {
+            any_changes = true;
+
+            int mouse_y;
+            SDL_GetMouseState(NULL, &mouse_y);
+            mouse_y *= scale;
+            int clicked_idx = -1;
+
+            for (int i=vertical_offset_idx; i<print_textures_count; i++) {
+                int rect_h_start = print_these_textures[i]->rect->y;
+                int rect_h_end = print_these_textures[i]->rect->y + print_these_textures[i]->rect->h;
+                int rect_h = print_these_textures[i]->rect->h;
+                if (mouse_y + rect_h < vault_contents_lower_limit /*window_h-font_size*/ && rect_h_start <= mouse_y && mouse_y < rect_h_end) {
+                    clicked_idx = print_these_textures[i]->idx;
+                    break;
+                }
+            }
+
+            Uint64 current_tick = SDL_GetTicks64();
+            if (selected_idx == clicked_idx && current_tick - last_mouse_click_tick <= 250 * MILLISECOND) { // NOTE: double-click equals to enter
+                select_vault_content = false;
+                break;
+            }
+            last_mouse_click_tick = current_tick;
+
+            if (clicked_idx >= 0) {
+                selected_idx = clicked_idx;
+            }
+            // END MOUSE SELECT
             
             // WINDOW RESIZE START
+            // TODO: some weird behaviors when resizing, fix them
+            // * resize during master key asking - input area not shown
+            // * resize doesn't snap to selected item
             } else if(sdl_event.type == SDL_WINDOWEVENT && sdl_event.window.event == SDL_WINDOWEVENT_RESIZED) {
                 any_changes = true;
 
                 SDL_GetRendererOutputSize(renderer, &window_w, &window_h);
-                input_texture->rect->y = window_h-font_size;
+                vault_contents_lower_limit = window_h - font_size - padding;
+                input_texture->rect->y = vault_contents_lower_limit; // window_h-font_size;
             // END WINDOW RESIZE
             }
         }
@@ -614,7 +629,7 @@ vault_loop_render:
             corrected_rect->y = offset_h;
 
             if (print_these_textures[i]->rect->y < 0 ||
-                window_h - font_size < offset_h + font_size) {
+                vault_contents_lower_limit /*window_h - font_size*/ < offset_h + font_size) {
                 break;
             }
             if (i == selected_idx) {
@@ -623,7 +638,7 @@ vault_loop_render:
                     .x=print_these_textures[i]->rect->x, 
                     .y=offset_h,
                     .w=window_w, 
-                    .h=font_size
+                    .h=print_these_textures[i]->rect->h
                 });
                 SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a); 
             }
@@ -635,7 +650,7 @@ vault_loop_render:
         {
             // horizontal border
             SDL_SetRenderDrawColor(renderer, BLACK.r, BLACK.g, BLACK.b, BLACK.a);
-            SDL_RenderFillRect(renderer, &(SDL_Rect){.x=0, .y=window_h - font_size, .w=window_w, .h=1}); // NOTE: border to sep vault content from input
+            SDL_RenderFillRect(renderer, &(SDL_Rect){.x=0, .y=vault_contents_lower_limit/*window_h - font_size*/, .w=window_w, .h=1}); // NOTE: border to sep vault content from input
             SDL_RenderCopy(renderer, input_texture->t, NULL, input_texture->rect);
             SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a);
         }
@@ -678,7 +693,7 @@ PwData *gui(char ***vault_contents, int line_count) {
     }
 
 
-    SDL_Window *window = SDL_CreateWindow("pw_gui", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+    SDL_Window *window = SDL_CreateWindow("pwgui", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
     if (window == NULL) {
         fprintf(stderr, "failed to create window: '%s'\n", SDL_GetError());
@@ -700,9 +715,11 @@ PwData *gui(char ***vault_contents, int line_count) {
     SDL_GetRendererOutputSize(renderer, &renderer_w, &renderer_h);
     float scale_w = renderer_w/logical_w;
     float scale_h = renderer_h/logical_h;
-    scale = (scale_w + scale_h) / 2.0f;
 
+    scale = (scale_w + scale_h) / 2.0f;
     font_size *= scale;
+    padding = 0.20f*font_size;
+    vault_contents_lower_limit = renderer_h - font_size - padding;
 
     TTF_Font *font = TTF_OpenFont(FONT, font_size);
     if (font == NULL) {
