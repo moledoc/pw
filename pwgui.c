@@ -618,6 +618,12 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 }
             // END WINDOW RESIZE
             }
+
+            end = SDL_GetTicks64();
+            elapsed = end - start;
+            if (elapsed >= 0.8*FRAME_DELAY) { // NOTE: if loop taken 80% time, break from handling events to render
+                break;
+            }
         }
 
         if (!any_changes) {
