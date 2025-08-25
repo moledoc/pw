@@ -543,11 +543,11 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 ) {
                 any_changes = true;
 
+                selected_idx -= 1;
                 if (0 < vertical_offset_idx && 
-                    print_these_textures[selected_idx]->rect->y <= 0) {
+                    print_these_textures[selected_idx]->rect->y < 0) {
                     vertical_offset_idx -= 1;
                 }
-                selected_idx -= 1;
             // END SELECT UP
 
             // START SELECT DOWN
@@ -560,8 +560,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 any_changes = true;
         
                 selected_idx += 1;
-
-                if (vault_contents_lower_limit /*window_h-font_size*/ < print_these_textures[selected_idx]->rect->y+font_size) {
+                if (vault_contents_lower_limit < print_these_textures[selected_idx]->rect->y+print_these_textures[selected_idx]->rect->h) {
                     vertical_offset_idx += 1;
                 }
             // END SELECT DOWN
@@ -632,30 +631,36 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
 
 vault_loop_render:
         SDL_RenderClear(renderer);
+        for (int i=vertical_offset_idx-1; i>=0; i--) {
+            SDL_Rect *corrected_rect = print_these_textures[i]->rect;
+            corrected_rect->y = -(print_these_textures[i]->rect->h * (vertical_offset_idx-i)); 
+        }
         int offset_h = 0;
         for (int i=vertical_offset_idx; i<print_textures_count; i++) {
-
+            bool should_print = true;
             SDL_Rect *corrected_rect = print_these_textures[i]->rect;
             corrected_rect->y = offset_h;
 
             if (print_these_textures[i]->rect->y < 0 ||
-                vault_contents_lower_limit /*window_h - font_size*/ < offset_h + font_size) {
-                break;
+                vault_contents_lower_limit /*window_h - font_size*/ < offset_h + print_these_textures[i]->rect->h) {
+                should_print = false;
             }
-            if (i == selected_idx) {
-                SDL_SetRenderDrawColor(renderer, BLUE.r, BLUE.g, BLUE.b, BLUE.a);
-                SDL_RenderFillRect(renderer, &(SDL_Rect){
-                    .x=print_these_textures[i]->rect->x, 
-                    .y=offset_h,
-                    .w=window_w, 
-                    .h=print_these_textures[i]->rect->h
-                });
-                SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a); 
+            if (should_print) {
+                if (i == selected_idx) {
+                    SDL_SetRenderDrawColor(renderer, BLUE.r, BLUE.g, BLUE.b, BLUE.a);
+                    SDL_RenderFillRect(renderer, &(SDL_Rect){
+                        .x=print_these_textures[i]->rect->x, 
+                        .y=offset_h,
+                        .w=window_w, 
+                        .h=print_these_textures[i]->rect->h
+                    });
+                    SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a); 
+                }
+                SDL_RenderCopy(renderer, print_these_textures[i]->t, NULL, corrected_rect);
             }
-
-            SDL_RenderCopy(renderer, print_these_textures[i]->t, NULL, corrected_rect);
             offset_h += corrected_rect->h;
         }
+        
 
         {
             // horizontal border
