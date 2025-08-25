@@ -45,7 +45,7 @@
 #elif __linux__
 #define FONT "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 #elif _WIN32
-#define FONT "TODO:"
+#define FONT "C:\\Windows\\Fonts\\segoeui.ttf"
 #endif
 
 #define rgb_to_sdl_color(rgb)                                                  \
@@ -681,7 +681,6 @@ vault_loop_delay:
     return print_these_textures[selected_idx]->idx;
 }
 
-// TODO: GUI for selecting domain
 PwData *gui(char ***vault_contents, int line_count) {
 
     ///////////////////////////
