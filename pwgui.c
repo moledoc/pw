@@ -72,6 +72,8 @@ float padding = PADDING;
 float vault_contents_lower_limit = WINDOW_HEIGHT - FONT_SIZE - PADDING;
 
 // TODO: remove `window_h-font` commented out code
+// TODO: check file permissions
+// TODO: allow specifying master key from cli: literal and file
 
 int clamp(int target, int lower_bound, int upper_bound) {
     return target * (lower_bound <= target && target <= upper_bound) +
