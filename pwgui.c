@@ -73,7 +73,6 @@ float padding = PADDING;
 float vault_contents_lower_limit = WINDOW_HEIGHT - FONT_SIZE - PADDING;
 
 // TODO: remove `window_h-font` commented out code
-// TODO: allow specifying master key from cli: literal and file
 
 int clamp(int target, int lower_bound, int upper_bound) {
     return target * (lower_bound <= target && target <= upper_bound) +
@@ -700,7 +699,7 @@ vault_loop_delay:
     return print_these_textures[selected_idx]->idx;
 }
 
-PwData *gui(char ***vault_contents, int line_count) {
+PwData *gui(char *master_key, char ***vault_contents, int line_count) {
 
     ///////////////////////////
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -754,7 +753,9 @@ PwData *gui(char ***vault_contents, int line_count) {
 
     SDL_RenderClear(renderer);
 
-    char *master_key = ask_master_key(window, renderer, font);
+    if (master_key == NULL) {
+        master_key = ask_master_key(window, renderer, font);
+    }
 
     int window_w;
     int window_h;
@@ -930,6 +931,7 @@ void sleep_for(int amount) {
 
 int main(int argc, char **argv) {
     char *arg_filename = NULL;
+    char *arg_key = NULL;
     int arg_sleep = SLEEP_FOR;
     int exit_code = 0;
 
@@ -939,6 +941,29 @@ int main(int argc, char **argv) {
             size_t filename_size = sizeof(char)*argv_len+1; // +1 for \0
             arg_filename = mmalloc(filename_size);
             memcpy(arg_filename, argv[i+1], argv_len);
+        } else if ((strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--key") == 0) && i+1 < argc) {
+            char *arg_key_local = argv[i + 1];
+            FILE *fptr = fopen(arg_key_local, "r");
+            if (fptr != NULL) {
+              fseek(fptr, 0, SEEK_END);
+              long sf_size = ftell(fptr);
+              rewind(fptr);
+              arg_key = mmalloc((sf_size + 1) * sizeof(char));
+              arg_key[sf_size] = '\0';
+              fread(arg_key, sizeof(char), sf_size, fptr);
+              fclose(fptr);
+              if (sf_size > 0 && arg_key[sf_size - 1] == '\n') {
+                arg_key[sf_size - 1] = '\0';
+              }
+            } else if (errno == EACCES) {
+                fprintf(stdout, "reading key at %s failed: %s\n", arg_key_local, strerror(errno));
+                goto exit_main;
+            } else {
+              size_t len = strlen(arg_key_local);
+              arg_key = mmalloc((len + 1) * sizeof(char));
+              arg_key[len] = '\0';
+              memcpy(arg_key, arg_key_local, strlen(arg_key_local));
+            }
         } else if ((strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) || strcmp(argv[i], "help") == 0) {
             help();
             exit(0);
@@ -971,7 +996,7 @@ int main(int argc, char **argv) {
         goto exit_main;
     }
 
-    PwData *pw_data = gui(vault_contents, line_count);
+    PwData *pw_data = gui(arg_key, vault_contents, line_count);
     if (pw_data == NULL) { // NOTE: pw calc cancelled
         goto exit_main;
     }

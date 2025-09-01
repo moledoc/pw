@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
         key[sf_size] = '\0';
         fread(key, sizeof(char), sf_size, fptr);
         fclose(fptr);
-        if (key[sf_size - 1] == '\n') {
+        if (sf_size > 0 && key[sf_size - 1] == '\n') {
           key[sf_size - 1] = '\0';
         }
       } else {
