@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdbool.h>
+#include <errno.h>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
@@ -72,7 +73,6 @@ float padding = PADDING;
 float vault_contents_lower_limit = WINDOW_HEIGHT - FONT_SIZE - PADDING;
 
 // TODO: remove `window_h-font` commented out code
-// TODO: check file permissions
 // TODO: allow specifying master key from cli: literal and file
 
 int clamp(int target, int lower_bound, int upper_bound) {
@@ -83,6 +83,9 @@ int clamp(int target, int lower_bound, int upper_bound) {
 
 long file_size(char *filename) {
   FILE *fptr = fopen(filename, "r");
+  if (fptr == NULL) {
+    return 0;
+  }
   fseek(fptr, 0, SEEK_END);
   long fsize = ftell(fptr);
   fclose(fptr);
@@ -104,6 +107,9 @@ char *carve_str(char *contents, int contents_len, int offset, int *carved_len) {
 char ***read_vault_contents(char *arg_filename, int *line_count) {
     long fsize = file_size(arg_filename);
     FILE *fptr = fopen(arg_filename, "r");
+    if (fptr == NULL) {
+        return NULL;
+    }
     char *contents = mmalloc(sizeof(char)*(fsize + 1));
     size_t read_bytes = fread(contents, sizeof(char), fsize, fptr);
     fclose(fptr);
@@ -955,6 +961,10 @@ int main(int argc, char **argv) {
 
     int line_count = 0;
     char ***vault_contents = read_vault_contents(arg_filename, &line_count);
+    if (vault_contents == NULL) {
+        fprintf(stdout, "reading vault contents at %s failed: %s\n", arg_filename, strerror(errno));
+        goto exit_main;
+    }
     // vault_contents_printer(vault_contents, line_count); // REMOVEME:
     if (line_count == 0) {
         fprintf(stdout, "vault is empty\n");
