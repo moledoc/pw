@@ -166,7 +166,18 @@ void vault_contents_printer(char ***vault_contents, int line_count) {
 }
 
 void help() {
-    printf("TODO: help\n");
+    printf("NAME\n\tpwgui - graphical vaultless password manager\n");
+    printf("\nSYNOPSIS\n\tpwgui [-h] [-v] [-k KEY] -f VAULT_CONTENTS\n");
+    printf("\nOPTIONS\n");
+    printf("\t%s\n\t\tprint help\n", "-h, -help, --help, help");
+    printf("\t%s\n\t\tprint version\n", "-v, -version, --version, version");
+    printf("\t%s\n\t\tkey file or literal (optional)" \
+        "\n\t\tkey is asked when not provided\n", "-k KEY, --key KEY");
+    printf("\t%s\n\t\tvault contents (required)" \
+        "\n\t\texpected format (space separated list): salt pepper domain [length (1-32) default: 32]\n",
+        "-f VAULT_CONTENTS, --filename VAULT_CONTENTS");
+    printf("\nAUTHOR\n");
+    printf("\tMeelis Utt (meelis.utt@gmail.com)\n");
 }
 
 bool fuzzy_match(const char *text, const char *pattern) {
