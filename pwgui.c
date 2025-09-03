@@ -72,8 +72,6 @@ float font_size = FONT_SIZE;
 float padding = PADDING;
 float vault_contents_lower_limit = WINDOW_HEIGHT - FONT_SIZE - PADDING;
 
-// TODO: remove `window_h-font` commented out code
-
 int clamp(int target, int lower_bound, int upper_bound) {
     return target * (lower_bound <= target && target <= upper_bound) +
             lower_bound * (target < lower_bound) +
@@ -358,7 +356,7 @@ Texture *create_input_texture(SDL_Window *window, SDL_Renderer *renderer, TTF_Fo
     }
 
     input_texture->rect->x = padding;
-    input_texture->rect->y = vault_contents_lower_limit; // window_h-font_size;
+    input_texture->rect->y = vault_contents_lower_limit;
     input_texture->rect->w = input_prompt_surface->w;
     input_texture->rect->h = input_prompt_surface->h;
     input_texture->t = SDL_CreateTextureFromSurface(renderer, input_prompt_surface);
@@ -587,7 +585,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
                 int rect_h_start = print_these_textures[i]->rect->y;
                 int rect_h_end = print_these_textures[i]->rect->y + print_these_textures[i]->rect->h;
                 int rect_h = print_these_textures[i]->rect->h;
-                if (mouse_y + rect_h < vault_contents_lower_limit /*window_h-font_size*/ && rect_h_start <= mouse_y && mouse_y < rect_h_end) {
+                if (mouse_y + rect_h < vault_contents_lower_limit && rect_h_start <= mouse_y && mouse_y < rect_h_end) {
                     clicked_idx = print_these_textures[i]->idx;
                     break;
                 }
@@ -611,7 +609,7 @@ int select_vault_content_idx(SDL_Window *window, SDL_Renderer *renderer, TTF_Fon
 
                 SDL_GetRendererOutputSize(renderer, &window_w, &window_h);
                 vault_contents_lower_limit = window_h - font_size - padding;
-                input_texture->rect->y = vault_contents_lower_limit; // window_h-font_size;
+                input_texture->rect->y = vault_contents_lower_limit;
 
                 int offset_h = 0;
                 for (int i=0; i<selected_idx; i++) { // NOTE: only change if selected_idx wouldn't fit anymore - then select last visible
@@ -990,7 +988,7 @@ int main(int argc, char **argv) {
         fprintf(stdout, "reading vault contents at %s failed: %s\n", arg_filename, strerror(errno));
         goto exit_main;
     }
-    // vault_contents_printer(vault_contents, line_count); // REMOVEME:
+
     if (line_count == 0) {
         fprintf(stdout, "vault is empty\n");
         goto exit_main;
@@ -1002,7 +1000,6 @@ int main(int argc, char **argv) {
     }
 
     char *password = pw(pw_data->master_key, pw_data->salt, pw_data->pepper, pw_data->domain, pw_data->length);
-    printf("domain %s; password %s\n", pw_data->domain, password); // REMOVEME:
 
     char *prev_clipboard = read_from_clipboard();
     write_to_clipboard((const char *)password);

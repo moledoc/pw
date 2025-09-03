@@ -4,16 +4,16 @@
 
 ## GUI
 
+TODO:
+
 ### TODOs
 
 - [x] read vault.contents
-- [ ] SDL2 gui to display vault contents in fzf-like manner
-	- [ ] mouse select
-	- [ ] arrow navigation
-	- [ ] fuzzy finding (can be naive-ish)
-		- [ ] IMPROVEMENT: keep map of lines that match
-		- [ ] IMPROVEMENT: tree (trie maybe) struct for more efficiency
-- [ ] asking master password
+- [x] SDL2 gui to display vault contents in fzf-like manner
+	- [x] mouse select
+	- [x] arrow navigation
+	- [x] fuzzy finding (can be naive-ish)
+- [x] asking master password
 - [x] calculate password
 - [x] store password in clipboard for x seconds, revert clipboard value (unless it changed in the meantime)
 - [ ] update README:
@@ -22,8 +22,8 @@
 	- list nuances:
 		- master key background color meaning
 - [ ] test on:
-	- [ ] mac
-	- [ ] linux
+	- [x] mac
+	- [x] linux
 	- [ ] windows
 
 ## CLI
