@@ -968,7 +968,7 @@ int main(int argc, char **argv) {
             help();
             exit(0);
         } else if (strcmp("-v", argv[i]) == 0 || strcmp("version", argv[i]) == 0 || strcmp("-version", argv[i]) == 0 || strcmp("--version", argv[i]) == 0) {
-            printf("version: %s\n", VERSION);
+            version();
             return 0;
         } else if ((strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--sleep") == 0)) {
             int atoi_res = atoi(argv[i]);

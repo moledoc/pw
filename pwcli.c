@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
     } else if (strcmp("-v", flag) == 0 || strcmp("version", flag) == 0 ||
                strcmp("-version", flag) == 0 ||
                strcmp("--version", flag) == 0) {
-      printf("version: %s\n", VERSION);
+      version();
       return 0;
     } else if ((strcmp("-k", flag) == 0 || strcmp("--key", flag) == 0) &&
                i + 1 < argc) {
