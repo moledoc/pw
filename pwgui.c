@@ -681,7 +681,7 @@ vault_loop_render:
         {
             // horizontal border
             SDL_SetRenderDrawColor(renderer, BLACK.r, BLACK.g, BLACK.b, BLACK.a);
-            SDL_RenderFillRect(renderer, &(SDL_Rect){.x=0, .y=vault_contents_lower_limit/*window_h - font_size*/, .w=window_w, .h=1}); // NOTE: border to sep vault content from input
+            SDL_RenderFillRect(renderer, &(SDL_Rect){.x=0, .y=vault_contents_lower_limit, .w=window_w, .h=1}); // NOTE: border to sep vault content from input
             SDL_RenderCopy(renderer, input_texture->t, NULL, input_texture->rect);
             SDL_SetRenderDrawColor(renderer, prev_renderer_color.r, prev_renderer_color.g, prev_renderer_color.b, prev_renderer_color.a);
         }
@@ -710,7 +710,6 @@ vault_loop_delay:
 
 PwData *gui(char *master_key, char ***vault_contents, int line_count) {
 
-    ///////////////////////////
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         fprintf(stderr, "SDL_Init failed: '%s'\n", SDL_GetError());
         return NULL;
@@ -790,7 +789,6 @@ PwData *gui(char *master_key, char ***vault_contents, int line_count) {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    ///////////////////////////
 
     if (master_key == NULL || idx < 0) { // NOTE: cancelled the pw - early exit
         return NULL;

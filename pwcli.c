@@ -49,9 +49,9 @@ void print_example(char *key, char *salt, char *pepper, char *domain, int *lengt
   }
 
   if (length == NULL) {
-    printf("%-*s -> %s", 85, buf, pw(key, salt, pepper, domain, 0));
+    printf("%-*s -> %s", 82, buf, pw(key, salt, pepper, domain, 0));
   } else {
-    printf("%-*s -> %s", 85, buf, pw(key, salt, pepper, domain, *length));
+    printf("%-*s -> %s", 82, buf, pw(key, salt, pepper, domain, *length));
   }
 }
 
@@ -63,7 +63,7 @@ int *i_ptr(int i) {
 
 void help() {
   printf("NAME\n\tpw - vaultless password manager\n");
-  printf("\nSYNOPSIS\n\tpw [-h] [-s SALT] [-p PEPPER] [-l PW_LENGTH] -k KEY DOMAIN\n");
+  printf("\nSYNOPSIS\n\tpw [-h] [-s SALT] [-p PEPPER] [-l PW_LENGTH] -k KEY -d DOMAIN\n");
   printf("\nOPTIONS\n");
   printf("\t%s\n\t\tprint help\n", "-h, -help, --help, help");
   printf("\t%s\n\t\tprint version\n", "-v, -version, --version, version");
