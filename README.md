@@ -119,7 +119,7 @@ pwgui [-h] [-v] [-k KEY] -f VAULT_CONTENTS
 
 * VAULT_CONTENTS (salt pepper domain length) behave the same way as in `pwcli`
 * if `pepper` and `length` are provided, then
-	* if `0 < length < 32`, then `len(digested password+pepper) = length`.
+	* if `0 < length <= 32`, then `len(digested password+pepper) = length`.
 	* if `length <= 0 || 32 < length`, then `len(digested password+pepper) = 32+len(pepper)`
 
 ## TODOs
